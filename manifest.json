@@ -1,10 +1,11 @@
 {
-  "id": "obsidian-html-viewer",
+  "id": "style-html-viewer",
   "name": "HTML Viewer",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "minAppVersion": "0.15.0",
   "description": "Renders HTML documents natively in Obsidian workspace tabs with local CSS, image, and script asset resolution, CSP security, and link interception.",
   "author": "Robin Tan",
   "authorUrl": "https://github.com/taihoe/obisidian-html-viewer",
-  "isDesktopOnly": false
+  "isDesktopOnly": false,
+  "fundingUrl": "https://buymeacoffee.com/robintan"
 }
