@@ -61,18 +61,13 @@ export class HtmlView extends FileView {
     }
     if (!this.actionsRegistered) {
       this.actionsRegistered = true;
-      // eslint-disable-next-line obsidianmd/no-unsupported-api
-      if (typeof this.addAction === 'function') {
-        // eslint-disable-next-line obsidianmd/no-unsupported-api
-        this.addAction('code', 'Toggle source code', () => {
-          this.mode = this.mode === 'preview' ? 'source' : 'preview';
-          void this.renderView();
-        });
-        // eslint-disable-next-line obsidianmd/no-unsupported-api
-        this.addAction('refresh-cw', 'Reload', () => {
-          void this.renderView();
-        });
-      }
+      this.addAction('code', 'Toggle source code', () => {
+        this.mode = this.mode === 'preview' ? 'source' : 'preview';
+        void this.renderView();
+      });
+      this.addAction('refresh-cw', 'Reload', () => {
+        void this.renderView();
+      });
     }
   }
 
