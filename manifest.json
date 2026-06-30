@@ -1,7 +1,7 @@
 {
   "id": "style-html-viewer",
   "name": "Style HTML Viewer",
-  "version": "v1.0.3",
+  "version": "1.0.3",
   "minAppVersion": "0.15.0",
   "description": "Renders HTML documents natively in Obsidian workspace tabs with local CSS, image, and script asset resolution, CSP security, and link interception.",
   "author": "Robin Tan",
