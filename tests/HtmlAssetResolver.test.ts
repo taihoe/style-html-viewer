@@ -128,9 +128,22 @@ describe('HtmlAssetResolver Unit Tests', () => {
     });
 
     expect(result.transformedHtml).toContain('<meta http-equiv="Content-Security-Policy"');
-    expect(result.transformedHtml).toContain("default-src 'self' app: data: blob: file:");
-    expect(result.transformedHtml).toContain("script-src 'self' app: data: blob: file:");
-    expect(result.transformedHtml).toContain("style-src 'self' app: data: blob: file:");
+    expect(result.transformedHtml).toContain("default-src 'self' 'unsafe-inline' 'unsafe-eval' app: app://* file: data: blob:");
+    expect(result.transformedHtml).toContain("script-src 'self' 'unsafe-inline' 'unsafe-eval' app: app://* file: data: blob:");
+    expect(result.transformedHtml).toContain("style-src 'self' 'unsafe-inline' app: app://* file: data: blob:");
+  });
+
+  test('should parse and update pre-existing Content Security Policy meta tag', () => {
+    const rawHtml = `<html><head><meta http-equiv="Content-Security-Policy" content="style-src 'unsafe-inline' 'self' https://fonts.googleapis.com;"></head><body></body></html>`;
+    const result = resolveHtmlAssets({
+      rawHtml,
+      currentFileFolderPath: '',
+      getResourcePathFn: mockGetResourcePath,
+    });
+
+    expect(result.transformedHtml).toContain('<meta http-equiv="Content-Security-Policy"');
+    expect(result.transformedHtml).toContain("style-src 'unsafe-inline' 'self' https://fonts.googleapis.com app: app://* file: data: blob:");
+    expect(result.transformedHtml).toContain("default-src 'self' app: app://* file: data: blob:");
   });
 
   test('should inject IPC link interception script into head', () => {

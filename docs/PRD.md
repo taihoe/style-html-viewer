@@ -1,3 +1,11 @@
+---
+type: Reference
+title: Product Requirements Document
+description: The Product Requirements Document (PRD) detailing features, specifications, and scope for obsidian-html-viewer.
+tags: [requirements, prd, specification]
+timestamp: 2026-06-30T10:00:00Z
+---
+
 # PRD: Obsidian HTML Viewer Plugin (`obsidian-html-viewer`)
 
 ## Problem Statement

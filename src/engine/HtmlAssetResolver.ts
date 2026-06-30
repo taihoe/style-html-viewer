@@ -83,7 +83,8 @@ function processSrcset(
   srcsetVal: string,
   currentFileFolderPath: string,
   getResourcePathFn: (vaultPath: string) => string,
-  assetPaths: string[]
+  assetPaths: string[],
+  resolvedUris?: string[]
 ): string {
   const candidates = srcsetVal.split(',');
   const processedCandidates = candidates.map(candidate => {
@@ -100,9 +101,25 @@ function processSrcset(
     const vaultPath = normalizeVaultPath(currentFileFolderPath, basePath);
     assetPaths.push(vaultPath);
     const resolvedUri = getResourcePathFn(vaultPath) + queryHashSuffix;
+    if (resolvedUris) {
+      resolvedUris.push(resolvedUri);
+    }
     return resolvedUri + descriptor;
   });
   return processedCandidates.join(', ');
+}
+
+function extractCspSource(uri: string): string | null {
+  if (!uri) return null;
+  const match = uri.match(/^([a-z][a-z0-9+.-]*:\/\/[^\/]+)/i);
+  if (match) {
+    return match[1];
+  }
+  const schemeMatch = uri.match(/^([a-z][a-z0-9+.-]*:)/i);
+  if (schemeMatch) {
+    return schemeMatch[1];
+  }
+  return null;
 }
 
 /**
@@ -112,6 +129,7 @@ function processSrcset(
 export function resolveHtmlAssets(options: ResolveHtmlAssetsOptions): ResolveHtmlAssetsResult {
   const { rawHtml, currentFileFolderPath, getResourcePathFn } = options;
   const assetPaths: string[] = [];
+  const resolvedUris: string[] = [];
 
   const parser = new DOMParser();
   const doc = parser.parseFromString(rawHtml, 'text/html');
@@ -123,6 +141,7 @@ export function resolveHtmlAssets(options: ResolveHtmlAssetsOptions): ResolveHtm
       const vaultPath = normalizeVaultPath(currentFileFolderPath, basePath);
       assetPaths.push(vaultPath);
       const resolvedUri = getResourcePathFn(vaultPath) + queryHashSuffix;
+      resolvedUris.push(resolvedUri);
       el.setAttribute(attrName, resolvedUri);
     }
   };
@@ -130,7 +149,7 @@ export function resolveHtmlAssets(options: ResolveHtmlAssetsOptions): ResolveHtm
   const processSrcsetAttribute = (el: Element) => {
     const attrVal = el.getAttribute('srcset');
     if (attrVal) {
-      const transformedSrcset = processSrcset(attrVal, currentFileFolderPath, getResourcePathFn, assetPaths);
+      const transformedSrcset = processSrcset(attrVal, currentFileFolderPath, getResourcePathFn, assetPaths, resolvedUris);
       el.setAttribute('srcset', transformedSrcset);
     }
   };
@@ -166,14 +185,53 @@ export function resolveHtmlAssets(options: ResolveHtmlAssetsOptions): ResolveHtm
     }
   }
 
-  // Inject CSP meta tag if not already present
+  // Gather allowed sources for CSP
+  const allowedSources = new Set<string>(['app:', 'app://*', 'file:', 'data:', 'blob:']);
+  for (const uri of resolvedUris) {
+    const src = extractCspSource(uri);
+    if (src) {
+      allowedSources.add(src);
+    }
+  }
+
+  // Inject or update CSP meta tag
   let cspMeta = doc.querySelector('meta[http-equiv="Content-Security-Policy"]');
   if (!cspMeta) {
     cspMeta = doc.createElement('meta');
     cspMeta.setAttribute('http-equiv', 'Content-Security-Policy');
-    cspMeta.setAttribute('content', "default-src 'self' app: data: blob: file: 'unsafe-inline' 'unsafe-eval'; script-src 'self' app: data: blob: file: 'unsafe-inline' 'unsafe-eval'; style-src 'self' app: data: blob: file: 'unsafe-inline';");
+    cspMeta.setAttribute('content', "default-src 'self' 'unsafe-inline' 'unsafe-eval'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline';");
     head.insertBefore(cspMeta, head.firstChild);
   }
+
+  const cspContent = cspMeta.getAttribute('content') || '';
+  const directiveMap = new Map<string, Set<string>>();
+  const directives = cspContent.split(';').map(d => d.trim()).filter(d => d.length > 0);
+  for (const dir of directives) {
+    const parts = dir.split(/\s+/);
+    const name = parts[0].toLowerCase();
+    const values = parts.slice(1);
+    directiveMap.set(name, new Set(values));
+  }
+
+  if (!directiveMap.has('default-src')) {
+    directiveMap.set('default-src', new Set(["'self'"]));
+  }
+
+  const targetDirectives = ['default-src', 'script-src', 'style-src', 'img-src', 'media-src'];
+  for (const target of targetDirectives) {
+    if (directiveMap.has(target)) {
+      const values = directiveMap.get(target)!;
+      for (const src of allowedSources) {
+        values.add(src);
+      }
+    }
+  }
+
+  const updatedDirectives: string[] = [];
+  for (const [name, values] of directiveMap.entries()) {
+    updatedDirectives.push(`${name} ${Array.from(values).join(' ')}`);
+  }
+  cspMeta.setAttribute('content', updatedDirectives.join('; ') + ';');
 
   // Inject IPC Script
   const ipcScript = doc.createElement('script');

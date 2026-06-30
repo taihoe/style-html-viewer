@@ -75,8 +75,30 @@ class Plugin {
   addCommand() {}
 }
 
+class FileView extends ItemView {
+  constructor(leaf) {
+    super(leaf);
+    this.file = null;
+    this.allowNoFile = false;
+    this.navigation = true;
+  }
+  async onLoadFile(file) {
+    this.file = file;
+  }
+  async onUnloadFile(file) {
+    this.file = null;
+  }
+  async onRename(file) {
+    this.file = file;
+  }
+  canAcceptExtension(extension) {
+    return extension === 'html';
+  }
+}
+
 module.exports = {
   ItemView,
+  FileView,
   WorkspaceLeaf,
   TFile,
   Plugin

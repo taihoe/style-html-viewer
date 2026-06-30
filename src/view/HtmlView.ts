@@ -1,12 +1,11 @@
-import { ItemView, WorkspaceLeaf, TFile } from 'obsidian';
+import { FileView, WorkspaceLeaf, TFile } from 'obsidian';
 import { resolveHtmlAssets } from '../engine/HtmlAssetResolver';
 import { IpcBridge } from '../ipc/IpcBridge';
 import { VaultWatcher } from '../watcher/VaultWatcher';
 
 export const VIEW_TYPE_HTML = 'html-viewer-view';
 
-export class HtmlView extends ItemView {
-  private file: TFile | null = null;
+export class HtmlView extends FileView {
   private mode: 'preview' | 'source' = 'preview';
   private ipcBridge: IpcBridge;
   private vaultWatcher: VaultWatcher;
@@ -42,12 +41,17 @@ export class HtmlView extends ItemView {
   }
 
   public async onLoadFile(file: TFile): Promise<void> {
-    if (this.file && this.file.path !== file.path) {
-      this.vaultWatcher.unregisterView(this.file.path, this.reloadCallback);
-    }
     this.file = file;
+    const basePromise = super.onLoadFile(file);
     this.vaultWatcher.registerView(file.path, this.reloadCallback);
-    await this.renderView();
+    const renderPromise = this.renderView();
+    await basePromise;
+    await renderPromise;
+  }
+
+  public async onUnloadFile(file: TFile): Promise<void> {
+    this.vaultWatcher.unregisterView(file.path, this.reloadCallback);
+    await super.onUnloadFile(file);
   }
 
   public async onOpen(): Promise<void> {
@@ -76,6 +80,7 @@ export class HtmlView extends ItemView {
       this.vaultWatcher.unregister();
     }
     this.actionsRegistered = false;
+    await super.onClose();
   }
 
   private async renderView(): Promise<void> {
