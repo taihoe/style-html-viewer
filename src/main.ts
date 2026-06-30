@@ -3,7 +3,7 @@ import { HtmlView, VIEW_TYPE_HTML } from './view/HtmlView';
 import { VaultWatcher } from './watcher/VaultWatcher';
 
 export default class HtmlViewerPlugin extends Plugin {
-  public vaultWatcher: VaultWatcher;
+  public vaultWatcher!: VaultWatcher;
 
   async onload(): Promise<void> {
     this.vaultWatcher = new VaultWatcher(this.app.vault);

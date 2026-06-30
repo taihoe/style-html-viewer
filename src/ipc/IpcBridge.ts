@@ -1,3 +1,5 @@
+import { App } from 'obsidian';
+
 export interface IpcNavigatePayload {
   type: 'obsidian-navigate';
   linkText: string;
@@ -37,12 +39,12 @@ export const IPC_SCRIPT_TEMPLATE = getClickInterceptorScript();
 
 
 export class IpcBridge {
-  private app: any;
+  private app: App;
   private getSourcePath: () => string;
   private messageHandler: ((event: MessageEvent) => void) | null = null;
   private iframeEl: HTMLIFrameElement | null = null;
 
-  constructor(app: any, getSourcePath: () => string) {
+  constructor(app: App, getSourcePath: () => string) {
     this.app = app;
     this.getSourcePath = getSourcePath;
   }
@@ -70,12 +72,14 @@ export class IpcBridge {
           let sanitizedLinkText = data.linkText;
           try {
             sanitizedLinkText = decodeURIComponent(sanitizedLinkText);
-          } catch (e) {}
+          } catch {
+            // Ignore decoding errors
+          }
           sanitizedLinkText = sanitizedLinkText.replace(/%2f/gi, '/').replace(/%5c/gi, '\\');
           let prev: string;
           do {
             prev = sanitizedLinkText;
-            sanitizedLinkText = sanitizedLinkText.replace(/\.\./g, '').replace(/[\/\\]+/g, '/');
+            sanitizedLinkText = sanitizedLinkText.replace(/\.\./g, '').replace(/[/\\]+/g, '/');
           } while (sanitizedLinkText !== prev);
           sanitizedLinkText = sanitizedLinkText.replace(/^\/+/, '');
 
@@ -91,7 +95,7 @@ export class IpcBridge {
             window.open(trimmedUrl, '_blank');
           }
         }
-      } catch (e) {
+      } catch {
         // Safe error boundary for unexpected exceptions
       }
     };

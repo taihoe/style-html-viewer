@@ -1,18 +1,20 @@
+import { Vault, EventRef, TAbstractFile } from 'obsidian';
+
 export type ReloadCallback = () => void;
 
 export class VaultWatcher {
-  private vault: any;
+  private vault: Vault | null;
   private getCurrentFilePath?: () => string | null;
   private onReload?: ReloadCallback;
   private trackedDependencies: Set<string> = new Set();
-  private eventRef: any = null;
+  private eventRef: EventRef | null = null;
 
   // Global & Multi-view dependency maps
   private viewsByHtmlPath: Map<string, Set<ReloadCallback>> = new Map();
   private dependenciesByHtmlPath: Map<string, Map<ReloadCallback | null, Set<string>>> = new Map();
 
-  constructor(vault: any, getCurrentFilePath?: () => string | null, onReload?: ReloadCallback) {
-    this.vault = vault;
+  constructor(vault: Vault | null | undefined, getCurrentFilePath?: () => string | null, onReload?: ReloadCallback) {
+    this.vault = vault || null;
     this.getCurrentFilePath = getCurrentFilePath;
     this.onReload = onReload;
   }
@@ -139,9 +141,10 @@ export class VaultWatcher {
   }
 
   public register(): void {
-    if (this.eventRef || !this.vault || typeof this.vault.on !== 'function') return;
+    const vault = this.vault;
+    if (this.eventRef || !vault || typeof vault.on !== 'function') return;
 
-    this.eventRef = this.vault.on('modify', (file: any) => {
+    this.eventRef = vault.on('modify', (file: TAbstractFile) => {
       if (!file || !file.path) return;
       const modifiedPath = this.normalizePath(file.path);
       const triggeredCallbacks = new Set<ReloadCallback>();
@@ -191,8 +194,9 @@ export class VaultWatcher {
   }
 
   public unregister(): void {
-    if (this.eventRef && this.vault && typeof this.vault.offref === 'function') {
-      this.vault.offref(this.eventRef);
+    const vault = this.vault;
+    if (this.eventRef && vault && typeof vault.offref === 'function') {
+      vault.offref(this.eventRef);
       this.eventRef = null;
     }
   }

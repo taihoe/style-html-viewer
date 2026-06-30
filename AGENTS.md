@@ -16,7 +16,7 @@ To prevent context bloat and ensure you only load the information necessary for 
 
 1. **Strict Sandboxing**: Always respect and preserve the iframe sandbox and CSP boundaries.
 2. **Seam-Based Testing**: Write and maintain unit tests for pure logical components, using mocks to isolate Obsidian dependencies.
-3. **TypeScript Excellence**: Write fully typed code and compile it with the workspace configurations.
+3. **TypeScript Excellence**: Write fully typed code and compile it with the workspace configurations. Always run type checking via `npx tsc --noEmit` and check for linter warnings, ensuring zero compilation or type safety errors before committing or completing tasks.
 4. **Preserve Documentation**: Maintain existing comments and docstrings.
 
 ## Onboarding & Reference Topics

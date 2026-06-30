@@ -22,3 +22,4 @@ All workflows are run via standard npm scripts defined in [package.json](../../p
 
 1. **Strict Types**: The workspace has `"strict": true` enabled in [tsconfig.json](../../tsconfig.json). Avoid using `any` type annotations; define specific typescript types or interfaces.
 2. **ESBuild Output**: The build output file (`main.js`) must be generated in the root of the workspace. Always check that the compiler and esbuild config align (targeting `ES2021`).
+3. **Compilation & Lint Verification**: Always verify that the codebase compiles cleanly without errors or warnings by running `npx tsc --noEmit`. Perform standard type checking and ensure all code compiles with no lint errors before committing or releasing any builds.

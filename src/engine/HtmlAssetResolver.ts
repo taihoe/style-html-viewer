@@ -16,7 +16,7 @@ export interface ResolveHtmlAssetsResult {
   assetPaths: string[];
 }
 
-import { getClickInterceptorScript, IPC_SCRIPT_TEMPLATE } from '../ipc/IpcBridge';
+import { getClickInterceptorScript } from '../ipc/IpcBridge';
 
 function isExternalOrSpecialUrl(url: string): boolean {
   if (!url) return true;
@@ -113,7 +113,7 @@ function processSrcset(
 
 function extractCspSource(uri: string): string | null {
   if (!uri) return null;
-  const match = uri.match(/^([a-z][a-z0-9+.-]*:\/\/[^\/]+)/i);
+  const match = uri.match(/^([a-z][a-z0-9+.-]*:\/\/[^/]+)/i);
   if (match) {
     return match[1];
   }
@@ -129,7 +129,7 @@ function resolveCssUrls(
   cssFilePath: string,
   getResourcePathFn: (vaultPath: string) => string
 ): string {
-  return cssContent.replace(/url\(\s*['"]?([^'")\s]+)['"]?\s*\)/g, (match, relUrl) => {
+  return cssContent.replace(/url\(\s*['"]?([^'")\s]+)['"]?\s*\)/g, (match: string, relUrl: string): string => {
     if (isExternalOrSpecialUrl(relUrl)) {
       return match;
     }
@@ -293,15 +293,21 @@ export async function resolveHtmlAssets(options: ResolveHtmlAssetsOptions): Prom
     meta.setAttribute('content', finalContent);
   });
 
-  // Inject IPC Script
-  const ipcScript = doc.createElement('script');
-  ipcScript.textContent = getClickInterceptorScript();
-  head.appendChild(ipcScript);
-
   const hasDoctype = Boolean(doc.doctype) || /^\s*<!DOCTYPE\s+html/i.test(rawHtml);
   let transformedHtml = doc.documentElement ? doc.documentElement.outerHTML : doc.body.innerHTML;
   if (hasDoctype && !/^\s*<!DOCTYPE\s+html/i.test(transformedHtml)) {
     transformedHtml = '<!DOCTYPE html>\n' + transformedHtml;
+  }
+
+  // Inject IPC Script
+  const scriptContent = getClickInterceptorScript();
+  const scriptTag = `<script>${scriptContent}</script>`;
+  if (transformedHtml.match(/<\/head>/i)) {
+    transformedHtml = transformedHtml.replace(/<\/head>/i, `${scriptTag}</head>`);
+  } else if (transformedHtml.match(/<body>/i)) {
+    transformedHtml = transformedHtml.replace(/<body>/i, `<body>${scriptTag}`);
+  } else {
+    transformedHtml = scriptTag + transformedHtml;
   }
 
   return {
