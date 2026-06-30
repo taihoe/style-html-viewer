@@ -1,7 +1,7 @@
 {
   "id": "style-html-viewer",
   "name": "Style HTML Viewer",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "minAppVersion": "1.2.0",
   "description": "Renders HTML documents natively in workspace tabs with local CSS, image, and script asset resolution, CSP security, and link interception.",
   "author": "Robin Tan",

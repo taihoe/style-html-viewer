@@ -85,7 +85,7 @@ export class IpcBridge {
 
           const sourcePath = this.getSourcePath();
           if (this.app && this.app.workspace && typeof this.app.workspace.openLinkText === 'function') {
-            this.app.workspace.openLinkText(sanitizedLinkText, sourcePath, false);
+            void this.app.workspace.openLinkText(sanitizedLinkText, sourcePath, false);
           }
         } else if (data.type === 'obsidian-open-external') {
           if (typeof data.url !== 'string') return;
