@@ -1,0 +1,30 @@
+{
+  "name": "obsidian-html-viewer",
+  "version": "1.0.0",
+  "description": "Obsidian plugin to render HTML files with local relative CSS, assets, and markdown link navigation.",
+  "main": "main.js",
+  "scripts": {
+    "dev": "node esbuild.config.mjs inline",
+    "build": "node esbuild.config.mjs production",
+    "test": "jest"
+  },
+  "keywords": [
+    "obsidian",
+    "obsidian-plugin",
+    "html",
+    "preview"
+  ],
+  "author": "Robin Tan",
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {
+    "@types/jest": "^29.5.12",
+    "@types/node": "^20.11.24",
+    "esbuild": "0.20.1",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0",
+    "obsidian": "latest",
+    "ts-jest": "^29.1.2",
+    "typescript": "5.3.3"
+  }
+}
