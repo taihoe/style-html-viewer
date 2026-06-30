@@ -18,7 +18,7 @@ export class HtmlView extends FileView {
   constructor(leaf: WorkspaceLeaf, vaultWatcher?: VaultWatcher) {
     super(leaf);
     this.ipcBridge = new IpcBridge(this.app, () => this.file ? this.file.path : '');
-    this.reloadCallback = () => this.renderView();
+    this.reloadCallback = () => { void this.renderView(); };
     if (vaultWatcher) {
       this.vaultWatcher = vaultWatcher;
       this.isWatcherShared = true;
@@ -61,13 +61,18 @@ export class HtmlView extends FileView {
     }
     if (!this.actionsRegistered) {
       this.actionsRegistered = true;
-      this.addAction('code', 'Toggle source code', () => {
-        this.mode = this.mode === 'preview' ? 'source' : 'preview';
-        this.renderView();
-      });
-      this.addAction('refresh-cw', 'Reload', () => {
-        this.renderView();
-      });
+      // eslint-disable-next-line obsidianmd/no-unsupported-api
+      if (typeof this.addAction === 'function') {
+        // eslint-disable-next-line obsidianmd/no-unsupported-api
+        this.addAction('code', 'Toggle source code', () => {
+          this.mode = this.mode === 'preview' ? 'source' : 'preview';
+          void this.renderView();
+        });
+        // eslint-disable-next-line obsidianmd/no-unsupported-api
+        this.addAction('refresh-cw', 'Reload', () => {
+          void this.renderView();
+        });
+      }
     }
   }
 
@@ -141,7 +146,7 @@ export class HtmlView extends FileView {
         const sourceEl = container.createEl('pre', { cls: 'html-viewer-source-container' });
         sourceEl.textContent = rawHtml;
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       this.ipcBridge.setIframe(null);
       container.empty();
       container.addClass('html-viewer-container');
@@ -149,7 +154,7 @@ export class HtmlView extends FileView {
       const card = errorContainer.createDiv({ cls: 'html-viewer-error-card' });
       const header = card.createDiv({ cls: 'html-viewer-error-header' });
       header.createDiv({ cls: 'html-viewer-error-title', text: 'Error Loading HTML File' });
-      const errorMessage = err ? (err.message || String(err)) : 'Unknown error';
+      const errorMessage = err instanceof Error ? err.message : String(err);
       card.createDiv({ cls: 'html-viewer-error-message', text: errorMessage });
     }
   }

@@ -1,4 +1,4 @@
-# Obsidian HTML Viewer Plugin (`obsidian-html-viewer`)
+# Style HTML Viewer
 
 An Obsidian plugin that enables rendering of `.html` files directly within Obsidian workspace tabs.
 
