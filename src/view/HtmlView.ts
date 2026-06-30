@@ -107,7 +107,7 @@ export class HtmlView extends FileView {
 
       const currentFolder = this.file.parent ? this.file.parent.path : '';
       
-      const result = resolveHtmlAssets({
+      const result = await resolveHtmlAssets({
         rawHtml,
         currentFileFolderPath: currentFolder,
         getResourcePathFn: (path: string) => {
@@ -116,6 +116,13 @@ export class HtmlView extends FileView {
             return this.app.vault.getResourcePath(tfile);
           }
           return path;
+        },
+        readVaultFileFn: async (path: string) => {
+          const tfile = this.app.vault.getAbstractFileByPath(path);
+          if (tfile instanceof TFile) {
+            return await this.app.vault.read(tfile);
+          }
+          throw new Error(`File not found: ${path}`);
         }
       });
 

@@ -3,13 +3,13 @@ import { resolveHtmlAssets } from '../src/engine/HtmlAssetResolver';
 describe('Challenger 4 Stress Testing: URL Parsing, Query Params, Hash Fragments & Asset Paths', () => {
   const mockGetResourcePath = (vaultPath: string) => `app://local-vault/${vaultPath}`;
 
-  test('Preservation of query params and hash fragments vs clean assetPaths', () => {
+  test('Preservation of query params and hash fragments vs clean assetPaths', async () => {
     const rawHtml = `
       <link rel="stylesheet" href="css/style.css?v=1.2.3&theme=dark#header">
       <img src="img/photo.jpg#section-2?param=val">
       <script src="js/app.js?build=99&lang=en"></script>
     `;
-    const result = resolveHtmlAssets({
+    const result = await resolveHtmlAssets({
       rawHtml,
       currentFileFolderPath: 'folder',
       getResourcePathFn: mockGetResourcePath,
@@ -26,9 +26,9 @@ describe('Challenger 4 Stress Testing: URL Parsing, Query Params, Hash Fragments
     ]));
   });
 
-  test('Empirical finding: Percent-encoded characters in URL paths retained in assetPaths', () => {
+  test('Empirical finding: Percent-encoded characters in URL paths retained in assetPaths', async () => {
     const rawHtml = `<img src="my%20folder/my%20image.png?v=1#pic">`;
-    const result = resolveHtmlAssets({
+    const result = await resolveHtmlAssets({
       rawHtml,
       currentFileFolderPath: 'docs',
       getResourcePathFn: mockGetResourcePath,
@@ -39,9 +39,9 @@ describe('Challenger 4 Stress Testing: URL Parsing, Query Params, Hash Fragments
     expect(result.transformedHtml).toContain('src="app://local-vault/docs/my%20folder/my%20image.png?v=1#pic"');
   });
 
-  test('Empirical finding: Leading and trailing whitespace in URL attributes corrupts assetPaths', () => {
+  test('Empirical finding: Leading and trailing whitespace in URL attributes corrupts assetPaths', async () => {
     const rawHtml = `<link rel="stylesheet" href="  styles/main.css?v=1#top  "><img src="  images/banner.png  ">`;
-    const result = resolveHtmlAssets({
+    const result = await resolveHtmlAssets({
       rawHtml,
       currentFileFolderPath: 'notes',
       getResourcePathFn: mockGetResourcePath,
@@ -52,9 +52,9 @@ describe('Challenger 4 Stress Testing: URL Parsing, Query Params, Hash Fragments
     expect(result.transformedHtml).toContain('href="app://local-vault/notes/  styles/main.css?v=1#top  "');
   });
 
-  test('Empirical finding: Comma inside query parameter breaks srcset splitting', () => {
+  test('Empirical finding: Comma inside query parameter breaks srcset splitting', async () => {
     const rawHtml = `<img src="fallback.jpg" srcset="image.jpg?rect=0,0,100,100 1x, image-2x.jpg?rect=0,0,200,200 2x">`;
-    const result = resolveHtmlAssets({
+    const result = await resolveHtmlAssets({
       rawHtml,
       currentFileFolderPath: 'gallery',
       getResourcePathFn: mockGetResourcePath,

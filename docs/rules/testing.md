@@ -15,8 +15,8 @@ We maintain a high standard of quality. This playbook outlines constraints on te
 Because Obsidian runs in an Electron shell environment, testing internal class behavior directly under standard CLI runners is extremely hard. To keep tests robust and lightweight:
 
 1. **Logical Isolation**: Separate processing logic (such as link parsing, path transformation, and CSP tag generation) into pure functions inside [src/engine/HtmlAssetResolver.ts](../../src/engine/HtmlAssetResolver.ts).
-2. **Pure Unit Testing**: Target these pure functions directly in Jest. Since they do not depend on Obsidian view classes or UI nodes, they can run synchronously and fast.
-3. **Mocks**: Mock external system layers, like the Obsidian API, using manual jest mocks. Keep these mocks centralized inside the `__mocks__` or test folders.
+2. **Pure Unit Testing**: Target these pure functions directly in Jest. Since they do not depend on Obsidian view classes or UI nodes, they can run fast in isolation.
+3. **Mocks**: Mock external system layers, like the Obsidian API and the asynchronous vault file-reading callback, using manual jest mocks. Keep these mocks centralized inside the `__mocks__` or test folders.
 
 ## Command
 

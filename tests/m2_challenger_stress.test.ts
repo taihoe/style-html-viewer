@@ -4,9 +4,9 @@ describe('Challenger M2 Stress & Empirical Harness for HtmlAssetResolver', () =>
   const mockGetResourcePath = (vaultPath: string) => `app://local-vault/${vaultPath}`;
 
   describe('1. Srcset Candidate Lists Stress Tests', () => {
-    test('1.1 Data URI with embedded comma inside srcset causes corruption and fake asset paths', () => {
+    test('1.1 Data URI with embedded comma inside srcset causes corruption and fake asset paths', async () => {
       const rawHtml = `<img srcset="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg== 1x, images/real-2x.png 2x">`;
-      const result = resolveHtmlAssets({
+      const result = await resolveHtmlAssets({
         rawHtml,
         currentFileFolderPath: 'docs',
         getResourcePathFn: mockGetResourcePath,
@@ -17,9 +17,9 @@ describe('Challenger M2 Stress & Empirical Harness for HtmlAssetResolver', () =>
       expect(result.transformedHtml).toContain('data:image/png;base64, app://local-vault/docs/iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==');
     });
 
-    test('1.2 Query parameter with embedded comma inside srcset splits incorrectly', () => {
+    test('1.2 Query parameter with embedded comma inside srcset splits incorrectly', async () => {
       const rawHtml = `<img srcset="pic.jpg?coords=10,20&size=small 1x, pic-2x.jpg 2x">`;
-      const result = resolveHtmlAssets({
+      const result = await resolveHtmlAssets({
         rawHtml,
         currentFileFolderPath: 'photos',
         getResourcePathFn: mockGetResourcePath,
@@ -29,9 +29,9 @@ describe('Challenger M2 Stress & Empirical Harness for HtmlAssetResolver', () =>
       expect(result.assetPaths).toContain('photos/20&size=small');
     });
 
-    test('1.3 Complex multiline whitespace in srcset is handled for clean paths', () => {
+    test('1.3 Complex multiline whitespace in srcset is handled for clean paths', async () => {
       const rawHtml = `<img srcset="\n  img1.png 100w,\n  img2.png 200w\n">`;
-      const result = resolveHtmlAssets({
+      const result = await resolveHtmlAssets({
         rawHtml,
         currentFileFolderPath: 'assets',
         getResourcePathFn: mockGetResourcePath,
@@ -42,14 +42,14 @@ describe('Challenger M2 Stress & Empirical Harness for HtmlAssetResolver', () =>
   });
 
   describe('2. Video Poster and Multimedia Stress Tests', () => {
-    test('2.1 Video poster and source attributes are resolved, but track tags are omitted', () => {
+    test('2.1 Video poster and source attributes are resolved, but track tags are omitted', async () => {
       const rawHtml = `
         <video poster="posters/intro-poster.jpg" src="videos/intro.mp4">
           <source src="videos/intro.webm" type="video/webm">
           <track src="subtitles/en.vtt" kind="subtitles" srclang="en">
         </video>
       `;
-      const result = resolveHtmlAssets({
+      const result = await resolveHtmlAssets({
         rawHtml,
         currentFileFolderPath: 'media',
         getResourcePathFn: mockGetResourcePath,
@@ -65,9 +65,9 @@ describe('Challenger M2 Stress & Empirical Harness for HtmlAssetResolver', () =>
   });
 
   describe('3. Nested Relative Paths & Normalization Stress Tests', () => {
-    test('3.1 Deep nested folder traversal resolves cleanly', () => {
+    test('3.1 Deep nested folder traversal resolves cleanly', async () => {
       const rawHtml = `<img src="../../shared/images/../../core/assets/logo.png">`;
-      const result = resolveHtmlAssets({
+      const result = await resolveHtmlAssets({
         rawHtml,
         currentFileFolderPath: 'level1/level2/level3',
         getResourcePathFn: mockGetResourcePath,
@@ -77,9 +77,9 @@ describe('Challenger M2 Stress & Empirical Harness for HtmlAssetResolver', () =>
       expect(result.transformedHtml).toContain('src="app://local-vault/level1/core/assets/logo.png"');
     });
 
-    test('3.2 Excessive root escape traversal clamps to vault root', () => {
+    test('3.2 Excessive root escape traversal clamps to vault root', async () => {
       const rawHtml = `<img src="../../../../../../top-secret.png">`;
-      const result = resolveHtmlAssets({
+      const result = await resolveHtmlAssets({
         rawHtml,
         currentFileFolderPath: 'folder',
         getResourcePathFn: mockGetResourcePath,
@@ -88,9 +88,9 @@ describe('Challenger M2 Stress & Empirical Harness for HtmlAssetResolver', () =>
       expect(result.assetPaths).toEqual(['top-secret.png']);
     });
 
-    test('3.3 Backslash in relative paths is preserved without slash normalization', () => {
+    test('3.3 Backslash in relative paths is preserved without slash normalization', async () => {
       const rawHtml = `<img src="images\\photo.jpg">`;
-      const result = resolveHtmlAssets({
+      const result = await resolveHtmlAssets({
         rawHtml,
         currentFileFolderPath: 'notes',
         getResourcePathFn: mockGetResourcePath,
@@ -101,9 +101,9 @@ describe('Challenger M2 Stress & Empirical Harness for HtmlAssetResolver', () =>
   });
 
   describe('4. Complex HTML Markup & DOM Parsing Stress Tests', () => {
-    test('4.1 Asset tags inside <template> elements are omitted from querySelector', () => {
+    test('4.1 Asset tags inside <template> elements are omitted from querySelector', async () => {
       const rawHtml = `<template><img src="template-asset.png"></template>`;
-      const result = resolveHtmlAssets({
+      const result = await resolveHtmlAssets({
         rawHtml,
         currentFileFolderPath: 'views',
         getResourcePathFn: mockGetResourcePath,
@@ -112,9 +112,9 @@ describe('Challenger M2 Stress & Empirical Harness for HtmlAssetResolver', () =>
       expect(result.assetPaths).toHaveLength(0);
     });
 
-    test('4.2 Asset tags inside HTML comments are ignored', () => {
+    test('4.2 Asset tags inside HTML comments are ignored', async () => {
       const rawHtml = `<!-- <img src="commented-out.png"> -->`;
-      const result = resolveHtmlAssets({
+      const result = await resolveHtmlAssets({
         rawHtml,
         currentFileFolderPath: '',
         getResourcePathFn: mockGetResourcePath,
@@ -123,9 +123,9 @@ describe('Challenger M2 Stress & Empirical Harness for HtmlAssetResolver', () =>
       expect(result.assetPaths).toHaveLength(0);
     });
 
-    test('4.3 HTML entities in asset URLs are decoded by DOM parser', () => {
+    test('4.3 HTML entities in asset URLs are decoded by DOM parser', async () => {
       const rawHtml = `<img src="images/foo&amp;bar.png">`;
-      const result = resolveHtmlAssets({
+      const result = await resolveHtmlAssets({
         rawHtml,
         currentFileFolderPath: 'gallery',
         getResourcePathFn: mockGetResourcePath,
@@ -136,9 +136,9 @@ describe('Challenger M2 Stress & Empirical Harness for HtmlAssetResolver', () =>
   });
 
   describe('5. CSP Injection Stress Tests', () => {
-    test('5.1 Lowercase http-equiv vs exact case selector test', () => {
+    test('5.1 Lowercase http-equiv vs exact case selector test', async () => {
       const rawHtml = `<html><head><meta http-equiv="content-security-policy" content="default-src 'self'"></head><body></body></html>`;
-      const result = resolveHtmlAssets({
+      const result = await resolveHtmlAssets({
         rawHtml,
         currentFileFolderPath: '',
         getResourcePathFn: mockGetResourcePath,

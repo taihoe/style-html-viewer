@@ -13,9 +13,9 @@ The `obsidian-html-viewer` plugin is structured with clean separation of concern
 ## Code Directory Structure
 
 * [src/main.ts](../../src/main.ts) — Plugin entry point. Initializes settings, registers `HtmlView` view class, and registers event listeners.
-* [src/engine/HtmlAssetResolver.ts](../../src/engine/HtmlAssetResolver.ts) — Core engine for parsing and rewriting HTML. Contains relative path conversion logic using `vault.getResourcePath` and Content Security Policy (CSP) tag injection.
+* [src/engine/HtmlAssetResolver.ts](../../src/engine/HtmlAssetResolver.ts) — Core engine for parsing and rewriting HTML. Contains relative path conversion logic using `vault.getResourcePath`, local stylesheet inlining, and Content Security Policy (CSP) tag updating.
 * [src/ipc/IpcBridge.ts](../../src/ipc/IpcBridge.ts) — Manages message communication between the sandboxed iframe and the parent Obsidian frame (IPC). Intercepts and parses navigate/click operations.
-* [src/view/HtmlView.ts](../../src/view/HtmlView.ts) — Obsidian `ItemView` wrapper. Renders the view leaf and handles toggling between Preview mode (using iframe) and Source Code mode (standard Obsidian markdown/text editor).
+* [src/view/HtmlView.ts](../../src/view/HtmlView.ts) — Obsidian `FileView` wrapper. Renders the view leaf and handles toggling between Preview mode (using iframe) and Source Code mode (standard Obsidian markdown/text editor).
 * [src/watcher/VaultWatcher.ts](../../src/watcher/VaultWatcher.ts) — Observes vault file modifications and handles automatic live-reloading logic by checking if modifications affect the current view or its resolved assets.
 
 ## Other Configurations

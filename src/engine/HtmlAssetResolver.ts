@@ -5,6 +5,8 @@ export interface ResolveHtmlAssetsOptions {
   currentFileFolderPath: string;
   /** Injected function resolving normalized vault path to resource URI */
   getResourcePathFn: (vaultPath: string) => string;
+  /** Injected function reading a file from the vault asynchronously */
+  readVaultFileFn?: (vaultPath: string) => Promise<string>;
 }
 
 export interface ResolveHtmlAssetsResult {
@@ -122,12 +124,30 @@ function extractCspSource(uri: string): string | null {
   return null;
 }
 
+function resolveCssUrls(
+  cssContent: string,
+  cssFilePath: string,
+  getResourcePathFn: (vaultPath: string) => string
+): string {
+  return cssContent.replace(/url\(\s*['"]?([^'")\s]+)['"]?\s*\)/g, (match, relUrl) => {
+    if (isExternalOrSpecialUrl(relUrl)) {
+      return match;
+    }
+    const cssFolder = cssFilePath.includes('/')
+      ? cssFilePath.substring(0, cssFilePath.lastIndexOf('/'))
+      : '';
+    const vaultPath = normalizeVaultPath(cssFolder, relUrl);
+    const resolvedUri = getResourcePathFn(vaultPath);
+    return `url('${resolvedUri}')`;
+  });
+}
+
 /**
  * Pure function that parses HTML, transforms relative asset paths to vault resource URIs,
  * injects a Content Security Policy meta tag, and embeds the IPC click interception script.
  */
-export function resolveHtmlAssets(options: ResolveHtmlAssetsOptions): ResolveHtmlAssetsResult {
-  const { rawHtml, currentFileFolderPath, getResourcePathFn } = options;
+export async function resolveHtmlAssets(options: ResolveHtmlAssetsOptions): Promise<ResolveHtmlAssetsResult> {
+  const { rawHtml, currentFileFolderPath, getResourcePathFn, readVaultFileFn } = options;
   const assetPaths: string[] = [];
   const resolvedUris: string[] = [];
 
@@ -155,7 +175,32 @@ export function resolveHtmlAssets(options: ResolveHtmlAssetsOptions): ResolveHtm
   };
 
   // Process asset elements
-  doc.querySelectorAll('link[href]').forEach(node => processSingleAttribute(node, 'href'));
+  const linkElements = Array.from(doc.querySelectorAll('link[href]'));
+  for (const node of linkElements) {
+    const rel = node.getAttribute('rel');
+    const href = node.getAttribute('href');
+    if (rel === 'stylesheet' && href && !isExternalOrSpecialUrl(href) && readVaultFileFn) {
+      const { basePath } = splitUrl(href);
+      const vaultPath = normalizeVaultPath(currentFileFolderPath, basePath);
+      assetPaths.push(vaultPath);
+      try {
+        const cssContent = await readVaultFileFn(vaultPath);
+        const resolvedCss = resolveCssUrls(cssContent, vaultPath, getResourcePathFn);
+        const styleEl = doc.createElement('style');
+        styleEl.textContent = resolvedCss;
+        if (node.parentNode) {
+          node.parentNode.replaceChild(styleEl, node);
+        }
+        console.log(`resolveHtmlAssets: Inlined stylesheet ${vaultPath}`);
+      } catch (e) {
+        console.error(`resolveHtmlAssets: Failed to inline stylesheet ${vaultPath}, falling back:`, e);
+        processSingleAttribute(node, 'href');
+      }
+    } else {
+      processSingleAttribute(node, 'href');
+    }
+  }
+
   doc.querySelectorAll('script[src]').forEach(node => processSingleAttribute(node, 'src'));
   doc.querySelectorAll('img').forEach(node => {
     if (node.hasAttribute('src')) processSingleAttribute(node, 'src');
@@ -194,44 +239,59 @@ export function resolveHtmlAssets(options: ResolveHtmlAssetsOptions): ResolveHtm
     }
   }
 
-  // Inject or update CSP meta tag
-  let cspMeta = doc.querySelector('meta[http-equiv="Content-Security-Policy"]');
-  if (!cspMeta) {
-    cspMeta = doc.createElement('meta');
-    cspMeta.setAttribute('http-equiv', 'Content-Security-Policy');
-    cspMeta.setAttribute('content', "default-src 'self' 'unsafe-inline' 'unsafe-eval'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline';");
-    head.insertBefore(cspMeta, head.firstChild);
+  // Find all CSP meta tags (case-insensitive value match, trimmed)
+  const cspMetas = Array.from(doc.querySelectorAll('meta')).filter(meta => {
+    const httpEquiv = meta.getAttribute('http-equiv');
+    return httpEquiv && httpEquiv.trim().toLowerCase() === 'content-security-policy';
+  });
+
+  console.log("resolveHtmlAssets: Found total meta tags:", doc.querySelectorAll('meta').length);
+  Array.from(doc.querySelectorAll('meta')).forEach((m, idx) => {
+    console.log(`resolveHtmlAssets: Meta #${idx}: http-equiv="${m.getAttribute('http-equiv')}", content="${m.getAttribute('content')}"`);
+  });
+
+  if (cspMetas.length === 0) {
+    const newCspMeta = doc.createElement('meta');
+    newCspMeta.setAttribute('http-equiv', 'Content-Security-Policy');
+    newCspMeta.setAttribute('content', "default-src 'self' 'unsafe-inline' 'unsafe-eval'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline';");
+    head.insertBefore(newCspMeta, head.firstChild);
+    cspMetas.push(newCspMeta);
+    console.log("resolveHtmlAssets: Injected new CSP meta tag");
   }
 
-  const cspContent = cspMeta.getAttribute('content') || '';
-  const directiveMap = new Map<string, Set<string>>();
-  const directives = cspContent.split(';').map(d => d.trim()).filter(d => d.length > 0);
-  for (const dir of directives) {
-    const parts = dir.split(/\s+/);
-    const name = parts[0].toLowerCase();
-    const values = parts.slice(1);
-    directiveMap.set(name, new Set(values));
-  }
+  cspMetas.forEach((meta, idx) => {
+    const cspContent = meta.getAttribute('content') || '';
+    const directiveMap = new Map<string, Set<string>>();
+    const directives = cspContent.split(';').map(d => d.trim()).filter(d => d.length > 0);
+    for (const dir of directives) {
+      const parts = dir.split(/\s+/);
+      const name = parts[0].toLowerCase();
+      const values = parts.slice(1);
+      directiveMap.set(name, new Set(values));
+    }
 
-  if (!directiveMap.has('default-src')) {
-    directiveMap.set('default-src', new Set(["'self'"]));
-  }
+    if (!directiveMap.has('default-src')) {
+      directiveMap.set('default-src', new Set(["'self'"]));
+    }
 
-  const targetDirectives = ['default-src', 'script-src', 'style-src', 'img-src', 'media-src'];
-  for (const target of targetDirectives) {
-    if (directiveMap.has(target)) {
-      const values = directiveMap.get(target)!;
-      for (const src of allowedSources) {
-        values.add(src);
+    const targetDirectives = ['default-src', 'script-src', 'style-src', 'img-src', 'media-src'];
+    for (const target of targetDirectives) {
+      if (directiveMap.has(target)) {
+        const values = directiveMap.get(target)!;
+        for (const src of allowedSources) {
+          values.add(src);
+        }
       }
     }
-  }
 
-  const updatedDirectives: string[] = [];
-  for (const [name, values] of directiveMap.entries()) {
-    updatedDirectives.push(`${name} ${Array.from(values).join(' ')}`);
-  }
-  cspMeta.setAttribute('content', updatedDirectives.join('; ') + ';');
+    const updatedDirectives: string[] = [];
+    for (const [name, values] of directiveMap.entries()) {
+      updatedDirectives.push(`${name} ${Array.from(values).join(' ')}`);
+    }
+    const finalContent = updatedDirectives.join('; ') + ';';
+    console.log(`resolveHtmlAssets: Updating CSP Meta #${idx} content to:`, finalContent);
+    meta.setAttribute('content', finalContent);
+  });
 
   // Inject IPC Script
   const ipcScript = doc.createElement('script');

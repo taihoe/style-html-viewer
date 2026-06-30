@@ -3,7 +3,7 @@ import { resolveHtmlAssets } from '../src/engine/HtmlAssetResolver';
 describe('HtmlAssetResolver Unit Tests', () => {
   const mockGetResourcePath = (vaultPath: string) => `app://local-vault/${vaultPath}`;
 
-  test('should resolve relative stylesheet, script, and image paths relative to current folder', () => {
+  test('should resolve relative stylesheet, script, and image paths relative to current folder', async () => {
     const rawHtml = `
       <!DOCTYPE html>
       <html>
@@ -17,7 +17,7 @@ describe('HtmlAssetResolver Unit Tests', () => {
       </html>
     `;
 
-    const result = resolveHtmlAssets({
+    const result = await resolveHtmlAssets({
       rawHtml,
       currentFileFolderPath: 'docs/learning',
       getResourcePathFn: mockGetResourcePath,
@@ -34,7 +34,7 @@ describe('HtmlAssetResolver Unit Tests', () => {
     ]));
   });
 
-  test('should resolve all asset tag types (<link>, <img>, <script>, <video>, <audio>, <source>, <iframe>) and attributes (src, srcset, poster, href)', () => {
+  test('should resolve all asset tag types (<link>, <img>, <script>, <video>, <audio>, <source>, <iframe>) and attributes (src, srcset, poster, href)', async () => {
     const rawHtml = `
       <!DOCTYPE html>
       <html>
@@ -54,7 +54,7 @@ describe('HtmlAssetResolver Unit Tests', () => {
       </html>
     `;
 
-    const result = resolveHtmlAssets({
+    const result = await resolveHtmlAssets({
       rawHtml,
       currentFileFolderPath: 'lessons',
       getResourcePathFn: mockGetResourcePath,
@@ -84,13 +84,13 @@ describe('HtmlAssetResolver Unit Tests', () => {
     ]));
   });
 
-  test('should preserve query strings and hash fragments while cleaning vault asset paths', () => {
+  test('should preserve query strings and hash fragments while cleaning vault asset paths', async () => {
     const rawHtml = `
       <link rel="stylesheet" href="css/style.css?v=1.2.3#theme">
       <img src="img/photo.jpg?size=large#top" srcset="img/photo-2x.jpg?size=large#top 2x">
     `;
 
-    const result = resolveHtmlAssets({
+    const result = await resolveHtmlAssets({
       rawHtml,
       currentFileFolderPath: 'notes',
       getResourcePathFn: mockGetResourcePath,
@@ -108,9 +108,9 @@ describe('HtmlAssetResolver Unit Tests', () => {
     ]));
   });
 
-  test('should preserve <!DOCTYPE html> declaration at start of transformed HTML', () => {
+  test('should preserve <!DOCTYPE html> declaration at start of transformed HTML', async () => {
     const rawHtml = `<!DOCTYPE html>\n<html><head><title>Test</title></head><body><h1>Hello</h1></body></html>`;
-    const result = resolveHtmlAssets({
+    const result = await resolveHtmlAssets({
       rawHtml,
       currentFileFolderPath: '',
       getResourcePathFn: mockGetResourcePath,
@@ -119,9 +119,9 @@ describe('HtmlAssetResolver Unit Tests', () => {
     expect(result.transformedHtml.startsWith('<!DOCTYPE html>\n')).toBe(true);
   });
 
-  test('should inject Content Security Policy meta tag into head with local schemes', () => {
+  test('should inject Content Security Policy meta tag into head with local schemes', async () => {
     const rawHtml = `<html><head><title>Test</title></head><body></body></html>`;
-    const result = resolveHtmlAssets({
+    const result = await resolveHtmlAssets({
       rawHtml,
       currentFileFolderPath: '',
       getResourcePathFn: mockGetResourcePath,
@@ -133,9 +133,9 @@ describe('HtmlAssetResolver Unit Tests', () => {
     expect(result.transformedHtml).toContain("style-src 'self' 'unsafe-inline' app: app://* file: data: blob:");
   });
 
-  test('should parse and update pre-existing Content Security Policy meta tag', () => {
+  test('should parse and update pre-existing Content Security Policy meta tag', async () => {
     const rawHtml = `<html><head><meta http-equiv="Content-Security-Policy" content="style-src 'unsafe-inline' 'self' https://fonts.googleapis.com;"></head><body></body></html>`;
-    const result = resolveHtmlAssets({
+    const result = await resolveHtmlAssets({
       rawHtml,
       currentFileFolderPath: '',
       getResourcePathFn: mockGetResourcePath,
@@ -146,9 +146,64 @@ describe('HtmlAssetResolver Unit Tests', () => {
     expect(result.transformedHtml).toContain("default-src 'self' app: app://* file: data: blob:");
   });
 
-  test('should inject IPC link interception script into head', () => {
+  test('should parse and update pre-existing Content Security Policy meta tag with lowercase http-equiv', async () => {
+    const rawHtml = `<html><head><meta http-equiv="content-security-policy" content="style-src 'unsafe-inline' 'self' https://fonts.googleapis.com;"></head><body></body></html>`;
+    const result = await resolveHtmlAssets({
+      rawHtml,
+      currentFileFolderPath: '',
+      getResourcePathFn: mockGetResourcePath,
+    });
+
+    expect(result.transformedHtml).toContain('<meta http-equiv="content-security-policy"');
+    expect(result.transformedHtml).toContain("style-src 'unsafe-inline' 'self' https://fonts.googleapis.com app: app://* file: data: blob:");
+    expect(result.transformedHtml).toContain("default-src 'self' app: app://* file: data: blob:");
+  });
+
+  test('should parse and update multiple pre-existing Content Security Policy meta tags', async () => {
+    const rawHtml = `<html><head><meta http-equiv="Content-Security-Policy" content="style-src 'self';"><meta http-equiv="content-security-policy" content="script-src 'self';"></head><body></body></html>`;
+    const result = await resolveHtmlAssets({
+      rawHtml,
+      currentFileFolderPath: '',
+      getResourcePathFn: mockGetResourcePath,
+    });
+
+    expect(result.transformedHtml).toContain("style-src 'self' app: app://* file: data: blob:");
+    expect(result.transformedHtml).toContain("script-src 'self' app: app://* file: data: blob:");
+  });
+
+  test('should inline local stylesheet when readVaultFileFn is provided', async () => {
+    const rawHtml = `<html><head><link rel="stylesheet" href="../assets/style.css"></head><body></body></html>`;
+    const mockReadVaultFile = jest.fn().mockResolvedValue('body { background: url("../images/bg.png"); }');
+    const result = await resolveHtmlAssets({
+      rawHtml,
+      currentFileFolderPath: 'lessons',
+      getResourcePathFn: mockGetResourcePath,
+      readVaultFileFn: mockReadVaultFile
+    });
+
+    expect(mockReadVaultFile).toHaveBeenCalledWith('assets/style.css');
+    expect(result.transformedHtml).toContain('<style>');
+    expect(result.transformedHtml).toContain("background: url('app://local-vault/images/bg.png');");
+    expect(result.transformedHtml).not.toContain('<link rel="stylesheet"');
+  });
+
+  test('should fallback to standard link resolution if reading stylesheet fails', async () => {
+    const rawHtml = `<html><head><link rel="stylesheet" href="../assets/style.css"></head><body></body></html>`;
+    const mockReadVaultFile = jest.fn().mockRejectedValue(new Error('Failed to read'));
+    const result = await resolveHtmlAssets({
+      rawHtml,
+      currentFileFolderPath: 'lessons',
+      getResourcePathFn: mockGetResourcePath,
+      readVaultFileFn: mockReadVaultFile
+    });
+
+    expect(result.transformedHtml).toContain('<link rel="stylesheet" href="app://local-vault/assets/style.css">');
+    expect(result.transformedHtml).not.toContain('<style>');
+  });
+
+  test('should inject IPC link interception script into head', async () => {
     const rawHtml = `<html><head></head><body></body></html>`;
-    const result = resolveHtmlAssets({
+    const result = await resolveHtmlAssets({
       rawHtml,
       currentFileFolderPath: '',
       getResourcePathFn: mockGetResourcePath,
@@ -158,7 +213,7 @@ describe('HtmlAssetResolver Unit Tests', () => {
     expect(result.transformedHtml).toContain('obsidian-open-external');
   });
 
-  test('should not modify external or special URI schemes (http, https, tel, sms, mailto, javascript, data, blob)', () => {
+  test('should not modify external or special URI schemes (http, https, tel, sms, mailto, javascript, data, blob)', async () => {
     const rawHtml = `
       <html>
         <head>
@@ -176,7 +231,7 @@ describe('HtmlAssetResolver Unit Tests', () => {
       </html>
     `;
 
-    const result = resolveHtmlAssets({
+    const result = await resolveHtmlAssets({
       rawHtml,
       currentFileFolderPath: 'notes',
       getResourcePathFn: mockGetResourcePath,
@@ -194,7 +249,7 @@ describe('HtmlAssetResolver Unit Tests', () => {
     expect(result.assetPaths).toHaveLength(0);
   });
 
-  test('should deduplicate assetPaths in result', () => {
+  test('should deduplicate assetPaths in result', async () => {
     const rawHtml = `
       <div>
         <img src="images/logo.png" alt="Logo 1">
@@ -204,7 +259,7 @@ describe('HtmlAssetResolver Unit Tests', () => {
       </div>
     `;
 
-    const result = resolveHtmlAssets({
+    const result = await resolveHtmlAssets({
       rawHtml,
       currentFileFolderPath: 'project',
       getResourcePathFn: mockGetResourcePath,

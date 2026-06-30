@@ -4,9 +4,9 @@ import { IPC_SCRIPT_TEMPLATE } from '../src/ipc/IpcBridge';
 describe('Empirical Challenge Suite for HtmlAssetResolver & IpcBridge', () => {
   const mockGetResourcePath = (vaultPath: string) => `app://local-vault/${vaultPath}`;
 
-  test('1. Path Traversal & Root Escapes', () => {
+  test('1. Path Traversal & Root Escapes', async () => {
     const rawHtml = `<img src="../../outside.png"><img src="../secret.png">`;
-    const resRoot = resolveHtmlAssets({
+    const resRoot = await resolveHtmlAssets({
       rawHtml,
       currentFileFolderPath: '',
       getResourcePathFn: mockGetResourcePath,
@@ -14,9 +14,9 @@ describe('Empirical Challenge Suite for HtmlAssetResolver & IpcBridge', () => {
     expect(resRoot.assetPaths).toEqual(['outside.png', 'secret.png']);
   });
 
-  test('2. Custom URI Schemes (tel:, sms:, obsidian:)', () => {
+  test('2. Custom URI Schemes (tel:, sms:, obsidian:)', async () => {
     const rawHtml = `<a href="tel:123456">Call</a><img src="tel:123456"><img src="obsidian://open">`;
-    const res = resolveHtmlAssets({
+    const res = await resolveHtmlAssets({
       rawHtml,
       currentFileFolderPath: 'docs',
       getResourcePathFn: mockGetResourcePath,
@@ -26,13 +26,13 @@ describe('Empirical Challenge Suite for HtmlAssetResolver & IpcBridge', () => {
     expect(res.assetPaths).toHaveLength(0);
   });
 
-  test('3. Query Parameters and Hash Fragments in Asset URLs', () => {
+  test('3. Query Parameters and Hash Fragments in Asset URLs', async () => {
     const rawHtml = `
       <link rel="stylesheet" href="style.css?v=1.0.0">
       <img src="image.png#section">
       <script src="app.js?build=123&env=prod"></script>
     `;
-    const res = resolveHtmlAssets({
+    const res = await resolveHtmlAssets({
       rawHtml,
       currentFileFolderPath: 'assets',
       getResourcePathFn: mockGetResourcePath,
@@ -42,9 +42,9 @@ describe('Empirical Challenge Suite for HtmlAssetResolver & IpcBridge', () => {
     expect(res.transformedHtml).toContain('href="app://local-vault/assets/style.css?v=1.0.0"');
   });
 
-  test('4. DOCTYPE Retention Verification', () => {
+  test('4. DOCTYPE Retention Verification', async () => {
     const rawHtml = `<!DOCTYPE html>\n<html><head><title>Test</title></head><body><h1>Hi</h1></body></html>`;
-    const res = resolveHtmlAssets({
+    const res = await resolveHtmlAssets({
       rawHtml,
       currentFileFolderPath: '',
       getResourcePathFn: mockGetResourcePath,
@@ -52,7 +52,7 @@ describe('Empirical Challenge Suite for HtmlAssetResolver & IpcBridge', () => {
     expect(res.transformedHtml.startsWith('<!DOCTYPE html>')).toBe(true);
   });
 
-  test('5. IPC Script Anchor Navigation Interception for internal # anchors', () => {
+  test('5. IPC Script Anchor Navigation Interception for internal # anchors', async () => {
     // We simulate browser event handling with JSDOM by running IPC_SCRIPT_TEMPLATE inside window
     document.head.innerHTML = '';
     document.body.innerHTML = '<a id="hash-link" href="#heading1">Heading 1</a><a id="ext-link" href="https://google.com">Google</a>';

@@ -35,7 +35,7 @@ describe('IpcBridge & Link Interception Unit Tests', () => {
   });
 
   describe('Script Generation & Injection', () => {
-    test('getClickInterceptorScript returns client script handling clicks on links', () => {
+    test('getClickInterceptorScript returns client script handling clicks on links', async () => {
       const script = getClickInterceptorScript();
       expect(typeof script).toBe('string');
       expect(script).toContain("document.addEventListener('click'");
@@ -48,9 +48,9 @@ describe('IpcBridge & Link Interception Unit Tests', () => {
       expect(IPC_SCRIPT_TEMPLATE).toBe(script);
     });
 
-    test('HtmlAssetResolver injects click interceptor script into transformed HTML', () => {
+    test('HtmlAssetResolver injects click interceptor script into transformed HTML', async () => {
       const rawHtml = '<html><head></head><body><a href="target.md">Link</a></body></html>';
-      const result = resolveHtmlAssets({
+      const result = await resolveHtmlAssets({
         rawHtml,
         currentFileFolderPath: 'folder',
         getResourcePathFn: (p) => p
@@ -61,7 +61,7 @@ describe('IpcBridge & Link Interception Unit Tests', () => {
   });
 
   describe('IpcBridge message handling (attach, navigate, open-external)', () => {
-    test('should process obsidian-navigate payload and call app.workspace.openLinkText', () => {
+    test('should process obsidian-navigate payload and call app.workspace.openLinkText', async () => {
       ipcBridge.attach();
 
       const event = new MessageEvent('message', {
@@ -77,7 +77,7 @@ describe('IpcBridge & Link Interception Unit Tests', () => {
       );
     });
 
-    test('should process obsidian-open-external payload and call window.open for http/https/mailto URLs with case insensitivity', () => {
+    test('should process obsidian-open-external payload and call window.open for http/https/mailto URLs with case insensitivity', async () => {
       ipcBridge.attach();
 
       const httpEvent = new MessageEvent('message', {
@@ -102,7 +102,7 @@ describe('IpcBridge & Link Interception Unit Tests', () => {
       expect(window.open).toHaveBeenCalledWith('MAILTO:test@example.com', '_blank');
     });
 
-    test('should strictly require iframe contentWindow matching event source', () => {
+    test('should strictly require iframe contentWindow matching event source', async () => {
       ipcBridge.attach();
 
       // Message from untrusted window (e.g., global window)
@@ -123,7 +123,7 @@ describe('IpcBridge & Link Interception Unit Tests', () => {
       expect(mockApp.workspace.openLinkText).not.toHaveBeenCalled();
     });
 
-    test('should stop handling messages after detach()', () => {
+    test('should stop handling messages after detach()', async () => {
       ipcBridge.attach();
       ipcBridge.detach();
 
@@ -138,7 +138,7 @@ describe('IpcBridge & Link Interception Unit Tests', () => {
   });
 
   describe('Error handling & Path traversal validation', () => {
-    test('should sanitize path traversal sequences and URL-encoded bypasses in linkText', () => {
+    test('should sanitize path traversal sequences and URL-encoded bypasses in linkText', async () => {
       ipcBridge.attach();
 
       const payloadTraversal1 = new MessageEvent('message', {
@@ -170,7 +170,7 @@ describe('IpcBridge & Link Interception Unit Tests', () => {
       expect(mockApp.workspace.openLinkText).toHaveBeenCalledWith('absolute/path/doc.md', 'folder/current.html', false);
     });
 
-    test('should safely ignore non-object or invalid data payloads', () => {
+    test('should safely ignore non-object or invalid data payloads', async () => {
       ipcBridge.attach();
 
       [null, undefined, 123, 'string-payload', {}, { type: 'unknown-type' }].forEach(data => {
@@ -182,7 +182,7 @@ describe('IpcBridge & Link Interception Unit Tests', () => {
       expect(window.open).not.toHaveBeenCalled();
     });
 
-    test('should ignore non-string linkText or url parameters', () => {
+    test('should ignore non-string linkText or url parameters', async () => {
       ipcBridge.attach();
 
       const invalidNav = new MessageEvent('message', {
@@ -200,7 +200,7 @@ describe('IpcBridge & Link Interception Unit Tests', () => {
       expect(window.open).not.toHaveBeenCalled();
     });
 
-    test('should reject unsafe external schemes (file://, javascript:, etc.)', () => {
+    test('should reject unsafe external schemes (file://, javascript:, etc.)', async () => {
       ipcBridge.attach();
 
       const unsafeSchemes = [
@@ -221,7 +221,7 @@ describe('IpcBridge & Link Interception Unit Tests', () => {
       expect(window.open).not.toHaveBeenCalled();
     });
 
-    test('should handle exceptions thrown inside messageHandler gracefully', () => {
+    test('should handle exceptions thrown inside messageHandler gracefully', async () => {
       ipcBridge.attach();
       mockApp.workspace.openLinkText.mockImplementation(() => {
         throw new Error('Unexpected workspace error');

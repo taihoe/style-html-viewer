@@ -12,7 +12,7 @@ This playbook details security guidelines and policies that protect the user fro
 
 ## Content Security Policy (CSP)
 
-A strict CSP must be dynamically generated and injected into the `<head>` of all rendered documents in [src/engine/HtmlAssetResolver.ts](../../src/engine/HtmlAssetResolver.ts):
+A strict CSP must be dynamically generated and updated on all rendered documents in [src/engine/HtmlAssetResolver.ts](../../src/engine/HtmlAssetResolver.ts):
 
 * **Allowed Protocol Schemes**: `app://local/`, `app:` and standard Obsidian custom local schemes (obtained dynamically via `vault.getResourcePath`).
 * **Restriction Policy**:
@@ -21,6 +21,10 @@ A strict CSP must be dynamically generated and injected into the `<head>` of all
   * `style-src 'unsafe-inline'` and allowed local schemes.
   * `img-src 'self' data: blob:` and allowed local schemes.
   * `media-src` (video/audio) restricted to allowed local schemes.
+
+* **Local Stylesheet Inlining**: 
+  * Because modern versions of Chromium/Obsidian enforce parent CSP boundaries that block `app://` styles from loading within sandboxed iframes, the plugin **inlines all local stylesheets**.
+  * The engine reads local CSS from the vault, rewrites any relative `url()` paths inside it to absolute vault resource URIs, and injects it as an inline `<style>` element. This bypasses custom-scheme restriction boundaries because inline style blocks are explicitly permitted under the `'unsafe-inline'` directive.
 
 ## Iframe Sandboxing
 
