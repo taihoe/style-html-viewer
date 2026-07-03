@@ -6,7 +6,8 @@ An Obsidian plugin that enables rendering of `.html` files directly within Obsid
 
 - **Workspace View Integration**: Open HTML files inside a dedicated custom view tab.
 - **Preview & Source Editor**: Toggle between a sandboxed rendered preview and raw HTML source code.
-- **DOM Relative Asset Resolution**: Automatically parses HTML and converts relative resources (`css`, `js`, images, audio, video) to valid local Obsidian vault URIs using `vault.getResourcePath`.
+- **DOM Relative Asset Resolution**: Automatically parses HTML and converts relative resources (`js`, images, audio, video) to valid local Obsidian vault URIs.
+- **Local Stylesheet Inlining**: To circumvent browser/Obsidian iframe CSP boundary limitations that prevent loading external `app://` stylesheets, the plugin automatically reads local CSS files, resolves nested asset `url()` values to absolute resource URIs, and injects them directly as inline `<style>` blocks.
 - **IPC Link Interception**: Intercepts links to local `.md` or `.html` files and opens them in native Obsidian workspace tabs. External web links (`http(s)`) are opened in the default browser.
 - **Security Sandboxing & CSP**: Executes pages inside an `<iframe>` with strict sandbox flags and enforces a strict, local-only Content Security Policy (CSP).
 - **Live Reloading**: Automatically re-renders the preview when the HTML file or any of its CSS/JS dependencies in the vault are modified.
