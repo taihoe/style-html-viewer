@@ -23,6 +23,10 @@ Welcome to the agent knowledge catalog and instructions for `obsidian-html-viewe
 * [Security & Sandboxing](rules/security.md) - Details on Content Security Policy (CSP), iframe sandbox attributes, and safety boundaries.
 * [CI/CD Release Pipeline](rules/releases.md) - Overview of the GitHub Actions release workflow for publishing build artifacts.
 
+## Architectural Decision Records (ADRs)
+
+* [ADR 1: Inline Stylesheets for Relative CSS Loading](adr/0001-inline-stylesheets.md) - Rationale and design details for inlining CSS to bypass sandboxed iframe CSP limitations.
+
 ## History
 
 * [Change Log](log.md) - Chronological log of updates and additions to these rules.
