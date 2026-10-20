@@ -44,9 +44,16 @@ npm run check      # typecheck, lint, unit tests, production build
 npm run test:browser
 ```
 
+`npm run lint` enforces Obsidian's rules for DOM creation, forbidden elements and window timers, together with type-aware checks for unsafe values. Warnings fail the check. Keep plugin styling in `styles.css`; the build also bundles it for the isolated preview. See the [development workflow](docs/rules/development.md) for implementation details.
+
 Browser checks use installed Google Chrome on macOS, `BROWSER_EXECUTABLE` when supplied, or Playwright Chromium (`npx playwright install chromium`). They exercise the minified browser bundle with an Obsidian API mock; a real Obsidian desktop/mobile smoke test is still recommended before release.
 
-The development dependency override for `@istanbuljs/load-nyc-config` selects `js-yaml` 4.3.2+ to remove its vulnerable legacy `argparse` / `sprintf-js` chain. The loader uses the compatible `load()` API. Keep the override until the upstream loader adopts a patched dependency chain.
+Development dependency overrides keep the tooling's dependency chains patched:
+
+- `@istanbuljs/load-nyc-config` uses `js-yaml` 4.3.2+ to remove its vulnerable legacy `argparse` / `sprintf-js` chain. The loader uses the compatible `load()` API.
+- The `obsidian` API packages used during development and by the review linter use Moment 2.31.0+.
+
+Keep these overrides until the upstream packages adopt patched dependencies. The Obsidian API is external to the plugin bundle; these overrides do not replace dependencies inside the installed Obsidian app.
 
 ## Developer playbooks
 
