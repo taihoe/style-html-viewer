@@ -35,4 +35,6 @@ The bridge validates the sending iframe window and a per-render token. It listen
 
 Unloading or refreshing invalidates outstanding renders and detaches the obsolete frame from the bridge. Results, dependency updates and error displays must be guarded after every asynchronous stage. Tabs and Markdown embeds share these boundaries.
 
+The preview runtime validates parent commands as unknown data before reading fields. It uses standard DOM templates because Obsidian's element helpers are unavailable inside the opaque iframe. The resolver likewise parses and clones fixed scaffolding in detached documents; transformed vault CSS never attaches to the host document. Host controls use Obsidian's helpers, and their timers use the container's owning window.
+
 Use the browser regression suite to verify parent DOM isolation, blocked network requests, trusted click routing, local resource rendering and print styles. String-only sandbox assertions are insufficient.

@@ -11,7 +11,7 @@ function deferred<T>() {
   const promise = new Promise<T>((yes, no) => { resolve = yes; reject = no; });
   return { promise, resolve, reject };
 }
-function fixture() {
+function fixture(ownerDocument: Document = document) {
   const contents = new Map<string, string>();
   const files = new Map<string, TFile>();
   const listeners = new Map<string, Set<(file: TFile, oldPath?: string) => void>>();
@@ -31,8 +31,8 @@ function fixture() {
   };
   const watcher = new VaultWatcher(vault as unknown as Vault);
   watcher.register();
-  const container = document.createElement('div');
-  document.body.append(container);
+  const container = ownerDocument.createElement('div');
+  ownerDocument.body.append(container);
   const preferences = { enabled: () => false, setEnabled: jest.fn(async () => {}) };
   const panel = new PreviewPanel({ vault, workspace: {} } as unknown as App, container, watcher, preferences);
   return {
@@ -44,6 +44,35 @@ function fixture() {
 }
 
 describe('Preview lifecycle regressions', () => {
+  test('reload and search timers are scheduled and cancelled by the owning popout window', async () => {
+    const pending = new Map<number, TimerHandler>();
+    let sequence = 0;
+    const owner = {
+      setTimeout: jest.fn((callback: TimerHandler) => { pending.set(++sequence, callback); return sequence; }),
+      clearTimeout: jest.fn((id?: number) => { if (id !== undefined) pending.delete(id); }),
+      addEventListener: jest.fn(), removeEventListener: jest.fn()
+    };
+    const popoutDocument = document.implementation.createHTMLDocument();
+    Object.defineProperty(popoutDocument, 'defaultView', { value: owner });
+    const f = fixture(popoutDocument);
+    try {
+      const file = f.add('popout.html', '<p>Hello</p>');
+      await f.panel.load(file);
+      f.emit('modify', file);
+      const reloadId = sequence;
+      const search = f.container.querySelector('input[type="search"]')!;
+      search.dispatchEvent(new Event('input'));
+      const searchId = sequence;
+      expect(owner.setTimeout).toHaveBeenNthCalledWith(1, expect.any(Function), 80);
+      expect(owner.setTimeout).toHaveBeenNthCalledWith(2, expect.any(Function), 120);
+      f.panel.dispose();
+      expect(owner.clearTimeout).toHaveBeenCalledWith(reloadId);
+      expect(owner.clearTimeout).toHaveBeenCalledWith(searchId);
+      expect(pending.size).toBe(0);
+      expect(owner.removeEventListener).toHaveBeenCalledWith('message', expect.any(Function));
+    } finally { f.close(); }
+  });
+
   test('late stylesheet resolution cannot append an old frame or publish old dependencies', async () => {
     const f = fixture();
     const old = f.add('old.html', '<link rel="stylesheet" href="slow.css"><p>Old</p>');

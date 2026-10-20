@@ -16,7 +16,7 @@ if (typeof HTMLElement !== 'undefined') {
   }
   if (!HTMLElement.prototype.createEl) {
     HTMLElement.prototype.createEl = function(tag, o) {
-      const el = document.createElement(tag);
+      const el = this.ownerDocument.createElement(tag);
       if (o) {
         if (o.cls) {
           if (Array.isArray(o.cls)) {
@@ -41,6 +41,11 @@ if (typeof HTMLElement !== 'undefined') {
   if (!HTMLElement.prototype.createDiv) {
     HTMLElement.prototype.createDiv = function(o) {
       return this.createEl('div', o);
+    };
+  }
+  if (!HTMLElement.prototype.createSpan) {
+    HTMLElement.prototype.createSpan = function(o) {
+      return this.createEl('span', o);
     };
   }
 }

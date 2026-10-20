@@ -7,7 +7,7 @@ const cleanupCallbacks: Array<() => void> = [];
  * this harness supplies it only to the captured click listener. The browser suite tests
  * real input and sandbox enforcement without this substitution.
  */
-export function installPreviewRuntime(): void {
+export function installPreviewRuntime(token = ''): void {
   const originalDocumentAdd = document.addEventListener.bind(document);
   const originalWindowAdd = window.addEventListener.bind(window);
   const docSpy = jest.spyOn(document, 'addEventListener').mockImplementation((type, listener, options) => {
@@ -29,7 +29,7 @@ export function installPreviewRuntime(): void {
     originalWindowAdd(type, listener, options);
     cleanupCallbacks.push(() => window.removeEventListener(type, listener, options));
   });
-  try { eval(getClickInterceptorScript()); }
+  try { eval(getClickInterceptorScript(token)); }
   finally { docSpy.mockRestore(); winSpy.mockRestore(); }
 }
 

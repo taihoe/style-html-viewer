@@ -1,19 +1,23 @@
 import { App } from 'obsidian';
 import { folderOf, isSpecialUrl, resolveVaultPath, splitUrl } from '../engine/paths';
+import previewStyles from '../../styles.css';
 
 export interface IpcNavigatePayload { type: 'obsidian-navigate'; linkText: string; token?: string; newLeaf?: boolean }
 export interface IpcOpenExternalPayload { type: 'obsidian-open-external'; url: string; token?: string }
 export type IpcPayload = IpcNavigatePayload | IpcOpenExternalPayload;
 export type PreviewCommand =
   | { action: 'find'; query: string }
-  | { action: 'next'; direction: number }
+  | { action: 'next'; direction: -1 | 1 }
   | { action: 'heading'; id: string }
   | { action: 'print' };
 export interface PreviewMessage { type: string; [key: string]: unknown }
 
 /** Self-contained code serialized into the opaque preview; it never accesses parent DOM. */
-function previewRuntime(token: string): void {
+function previewRuntime(token: string, styles: string): void {
   const send = (data: Record<string, unknown>) => window.parent.postMessage({ ...data, token }, '*');
+  // The opaque iframe has no Obsidian DOM extensions. Clone a fixed, inert template
+  // within this document instead of depending on the host's createEl helpers.
+  const markTemplate = new DOMParser().parseFromString('<mark class="html-viewer-match"></mark>', 'text/html').querySelector('mark')!;
   let marks: HTMLElement[] = [];
   let current = -1;
   const reportMatches = () => send({ type: 'html-viewer-find', count: marks.length, current: current + 1 });
@@ -54,9 +58,11 @@ function previewRuntime(token: string): void {
     else if (e instanceof ErrorEvent) send({ type: 'html-viewer-diagnostic', path: e.filename || 'Document script', message: e.message });
   }, true);
   window.addEventListener('afterprint', () => send({ type: 'html-viewer-ready' }));
-  window.addEventListener('message', e => {
-    const data = e.data;
-    if (e.source !== window.parent || !data || data.type !== 'html-viewer-command' || data.token !== token) return;
+  window.addEventListener('message', (e: MessageEvent<unknown>) => {
+    const input = e.data;
+    if (e.source !== window.parent || !input || typeof input !== 'object' || Array.isArray(input)) return;
+    const data = input as Record<string, unknown>;
+    if (data.type !== 'html-viewer-command' || data.token !== token) return;
     if (data.action === 'find' && typeof data.query === 'string') {
       clearMatches();
       const query = data.query.slice(0, 300).toLowerCase();
@@ -74,11 +80,10 @@ function previewRuntime(token: string): void {
           let start = 0;
           let index = lower.indexOf(query);
           if (index < 0) continue;
-          const fragment = document.createDocumentFragment();
+          const fragment = new DocumentFragment();
           while (index >= 0 && marks.length < 1000) {
             fragment.append(document.createTextNode(value.slice(start, index)));
-            const mark = document.createElement('mark');
-            mark.className = 'html-viewer-match';
+            const mark = document.importNode(markTemplate, true);
             mark.textContent = value.slice(index, index + query.length);
             fragment.append(mark);
             marks.push(mark);
@@ -91,7 +96,7 @@ function previewRuntime(token: string): void {
         }
       }
       selectMatch(1);
-    } else if (data.action === 'next') selectMatch(data.direction === -1 ? -1 : 1);
+    } else if (data.action === 'next' && (data.direction === -1 || data.direction === 1)) selectMatch(data.direction);
     else if (data.action === 'heading' && typeof data.id === 'string') {
       const heading = Array.from(document.querySelectorAll('[data-html-viewer-heading]')).find(el => el.getAttribute('data-html-viewer-heading') === data.id);
       heading?.scrollIntoView({ block: 'start' });
@@ -102,9 +107,14 @@ function previewRuntime(token: string): void {
     }
   });
   const ready = () => {
-    const style = document.createElement('style');
-    style.textContent = '.html-viewer-match{background:#ffe16a;color:#171717}.html-viewer-current-match{outline:2px solid #b65400}@media print{.html-viewer-match{background:transparent;color:inherit}}';
-    document.head.append(style);
+    // Obsidian loads styles.css for the host. Its CSS cannot cross the iframe
+    // boundary, so adopt the same bundled file here without injecting style tags.
+    // Older WebViews still have native <mark> highlighting if adoption is unavailable.
+    if ('adoptedStyleSheets' in document && typeof CSSStyleSheet.prototype.replaceSync === 'function') {
+      const sheet = new CSSStyleSheet();
+      sheet.replaceSync(styles);
+      document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
+    }
     send({ type: 'html-viewer-ready' });
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ready, { once: true });
@@ -112,7 +122,9 @@ function previewRuntime(token: string): void {
 }
 
 export function getClickInterceptorScript(token = ''): string {
-  return `(${previewRuntime.toString()})(${JSON.stringify(token)});`;
+  // Keep serialized arguments inside the script even if CSS contains an HTML closing tag.
+  const args = [token, previewStyles].map(value => JSON.stringify(value).replace(/</g, '\\u003c')).join(',');
+  return `(${previewRuntime.toString()})(${args});`;
 }
 export const IPC_SCRIPT_TEMPLATE = getClickInterceptorScript();
 

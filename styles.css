@@ -174,3 +174,10 @@
 @media (max-width: 500px) {
   .html-viewer-navigation select { width: 100%; max-width: none; }
 }
+
+/* Search highlighting in the isolated preview; this file is also bundled for that document. */
+.html-viewer-match { background: #ffe16a; color: #171717; }
+.html-viewer-current-match { outline: 2px solid #b65400; }
+@media print {
+  .html-viewer-match { background: transparent; color: inherit; }
+}

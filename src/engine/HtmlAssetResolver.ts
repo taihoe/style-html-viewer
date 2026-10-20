@@ -52,6 +52,10 @@ export async function resolveHtmlAssets(options: ResolveHtmlAssetsOptions): Prom
   };
   const parser = new DOMParser();
   const doc = parser.parseFromString(rawHtml, 'text/html');
+  // These nodes belong to serialized, inert preview HTML, not Obsidian's UI.
+  // A fixed scaffold keeps this resolver independent of host-only DOM helpers.
+  const scaffold = parser.parseFromString('<head><style></style><meta><script></script></head>', 'text/html');
+  const styleTemplate = scaffold.querySelector('style')!;
   const resourceCache = new Map<string, Promise<string>>();
   const stylesheetCache = new Map<string, Promise<string>>();
   let stylesheetReads = 0;
@@ -138,7 +142,7 @@ export async function resolveHtmlAssets(options: ResolveHtmlAssetsOptions): Prom
       const path = resolveVaultPath(currentFileFolderPath, splitUrl(href).path);
       const text = await cssContext.readStylesheet(path);
       const css = await resolveCss(text, path, cssContext);
-      const style = doc.createElement('style');
+      const style = doc.importNode(styleTemplate, true);
       style.textContent = css.toString().replace(/<\/style/gi, '<\\/style');
       for (const attribute of ['media', 'title']) {
         if (node.hasAttribute(attribute)) style.setAttribute(attribute, node.getAttribute(attribute)!);
@@ -190,13 +194,13 @@ export async function resolveHtmlAssets(options: ResolveHtmlAssetsOptions): Prom
     `script-src-attr ${allowScripts ? "'unsafe-inline'" : "'none'"}`,
     "style-src 'unsafe-inline'", "img-src data: blob:", "media-src data: blob:", "font-src data: blob:"
   ].join('; ') + ';';
-  const csp = doc.createElement('meta');
+  const csp = doc.importNode(scaffold.querySelector('meta')!, true);
   csp.setAttribute('http-equiv', 'Content-Security-Policy');
   csp.setAttribute('content', policy);
   head.prepend(csp);
 
   // Inject IPC Script ahead of document scripts. Only this script runs in script-disabled mode.
-  const bridge = doc.createElement('script');
+  const bridge = doc.importNode(scaffold.querySelector('script')!, true);
   bridge.setAttribute('nonce', token);
   bridge.textContent = getClickInterceptorScript(token);
   csp.after(bridge);

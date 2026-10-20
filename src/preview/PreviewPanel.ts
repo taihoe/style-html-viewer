@@ -17,8 +17,9 @@ export class PreviewPanel {
   private generation = 0;
   private disposed = false;
   private mode: 'preview' | 'source' = 'preview';
-  private reloadTimer: ReturnType<typeof setTimeout> | undefined;
-  private searchTimer: ReturnType<typeof setTimeout> | undefined;
+  private reloadTimer: number | undefined;
+  private searchTimer: number | undefined;
+  private readonly hostWindow: Window;
   private viewport: HTMLDivElement;
   private outline: HTMLSelectElement;
   private search: HTMLInputElement;
@@ -36,8 +37,8 @@ export class PreviewPanel {
   private queryReady = false;
   private readonly reloadCallback = () => {
     this.invalidate();
-    clearTimeout(this.reloadTimer);
-    this.reloadTimer = setTimeout(() => { void this.render(); }, 80);
+    this.hostWindow.clearTimeout(this.reloadTimer);
+    this.reloadTimer = this.hostWindow.setTimeout(() => { void this.render(); }, 80);
   };
 
   constructor(
@@ -46,6 +47,7 @@ export class PreviewPanel {
     private watcher: VaultWatcher,
     private preferences: ScriptPreferences
   ) {
+    this.hostWindow = container.ownerDocument.defaultView || window;
     container.empty();
     container.addClass('html-viewer-container');
     const toolbar = container.createDiv({ cls: 'html-viewer-toolbar' });
@@ -75,8 +77,8 @@ export class PreviewPanel {
     const navigation = container.createDiv({ cls: 'html-viewer-navigation' });
     this.search = navigation.createEl('input', { attr: { type: 'search', placeholder: 'Find in preview', 'aria-label': 'Find in preview', maxlength: '300' } });
     this.search.addEventListener('input', () => {
-      clearTimeout(this.searchTimer);
-      this.searchTimer = setTimeout(() => this.find(), 120);
+      this.hostWindow.clearTimeout(this.searchTimer);
+      this.searchTimer = this.hostWindow.setTimeout(() => this.find(), 120);
     });
     this.search.addEventListener('keydown', event => {
       if (event.key === 'Enter') { event.preventDefault(); this.bridge.send({ action: 'next', direction: event.shiftKey ? -1 : 1 }); }
@@ -84,14 +86,14 @@ export class PreviewPanel {
     });
     this.button(navigation, 'Previous match', () => this.bridge.send({ action: 'next', direction: -1 }));
     this.button(navigation, 'Next match', () => this.bridge.send({ action: 'next', direction: 1 }));
-    this.matches = navigation.createEl('span', { attr: { role: 'status', 'aria-live': 'polite' } });
+    this.matches = navigation.createSpan({ attr: { role: 'status', 'aria-live': 'polite' } });
     this.outline = navigation.createEl('select', { attr: { 'aria-label': 'Document headings' } });
     this.outline.addEventListener('change', () => { if (this.outline.value) this.bridge.send({ action: 'heading', id: this.outline.value }); });
     const diagnostics = container.createEl('details', { cls: 'html-viewer-diagnostics' });
     this.diagnosticsSummary = diagnostics.createEl('summary', { text: 'Assets and diagnostics' });
     this.diagnosticsList = diagnostics.createDiv();
     this.viewport = container.createDiv({ cls: 'html-viewer-preview-container' });
-    this.bridge = new IpcBridge(app, () => this.file?.path || '', message => this.onMessage(message), container.ownerDocument.defaultView || window);
+    this.bridge = new IpcBridge(app, () => this.file?.path || '', message => this.onMessage(message), this.hostWindow);
     this.bridge.attach();
   }
 
@@ -112,8 +114,8 @@ export class PreviewPanel {
 
   public unload(): void {
     this.invalidate();
-    clearTimeout(this.reloadTimer);
-    clearTimeout(this.searchTimer);
+    this.hostWindow.clearTimeout(this.reloadTimer);
+    this.hostWindow.clearTimeout(this.searchTimer);
     this.watcher.unregisterCallback(this.reloadCallback);
     this.file = null;
     this.registeredPath = '';
@@ -181,7 +183,7 @@ export class PreviewPanel {
   private async render(): Promise<void> {
     if (this.disposed || !this.file) return;
     this.invalidate();
-    clearTimeout(this.reloadTimer);
+    this.hostWindow.clearTimeout(this.reloadTimer);
     const id = this.generation;
     const file = this.file;
     const path = file.path;

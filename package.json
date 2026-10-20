@@ -25,20 +25,24 @@
     "postcss-value-parser": "^4.2.0"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
+    "@eslint/js": "^9.39.5",
     "@types/jest": "^30.0.0",
     "@types/node": "^20.11.24",
     "esbuild": "^0.28.2",
     "eslint": "^10.13.0",
+    "eslint-plugin-obsidianmd": "^0.4.2",
     "jest": "^30.5.2",
     "jest-environment-jsdom": "^30.5.2",
-    "obsidian": "latest",
+    "obsidian": "^1.8.7",
     "playwright": "^1.64.1",
     "ts-jest": "^29.4.15",
     "typescript": "5.3.3",
     "typescript-eslint": "^8.72.0"
   },
   "overrides": {
+    "obsidian": {
+      "moment": "^2.31.0"
+    },
     "@istanbuljs/load-nyc-config": {
       "js-yaml": "^4.3.2"
     }

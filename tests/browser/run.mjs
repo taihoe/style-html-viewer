@@ -8,6 +8,7 @@ const root = process.cwd();
 const bundled = await build({
   stdin: { contents: `import Plugin from './src/main'; import { TFile } from 'obsidian'; import { resolveHtmlAssets } from './src/engine/HtmlAssetResolver'; window.harness = { Plugin, TFile, resolveHtmlAssets };`, resolveDir: root },
   bundle: true, write: false, platform: 'browser', target: 'es2021', minify: true,
+  loader: { '.css': 'text' },
   alias: { obsidian: path.join(root, '__mocks__/obsidian.js') }
 });
 const localChrome = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
@@ -64,6 +65,11 @@ try {
   await page.getByRole('searchbox', { name: 'Find in preview' }).fill('needle');
   await frame.locator('mark.html-viewer-match').first().waitFor();
   assert.equal(await frame.locator('mark.html-viewer-match').count(), 2);
+  assert.equal(await frame.locator('mark.html-viewer-match').first().evaluate(el => getComputedStyle(el).backgroundColor), 'rgb(255, 225, 106)', 'bundled styles.css highlights search matches inside the opaque iframe');
+  assert.equal(await frame.locator('mark.html-viewer-current-match').evaluate(el => getComputedStyle(el).outlineWidth), '2px');
+  assert.equal(await frame.locator('style').count(), 2, 'the runtime does not append style elements beyond the document’s two vault stylesheets');
+  assert.equal(await frame.evaluate(() => document.adoptedStyleSheets.length), 1);
+  assert.equal(await frame.evaluate(() => typeof document.body.createEl), 'undefined', 'preview controls do not require Obsidian DOM extensions');
   await page.getByRole('button', { name: 'Next match', exact: true }).click();
   assert.equal(await page.locator('.html-viewer-navigation [role="status"]').textContent(), '2 / 2');
   const heading = await page.locator('select[aria-label="Document headings"] option').nth(2).getAttribute('value');
