@@ -1,6 +1,6 @@
 {
   "name": "obsidian-html-viewer",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Obsidian plugin to render HTML files with local relative CSS, assets, and markdown link navigation.",
   "main": "main.js",
   "scripts": {

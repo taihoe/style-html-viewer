@@ -27,11 +27,25 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run tests
-        run: npm test
+      - name: Validate release metadata
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          node <<'NODE'
+          const assert = require('node:assert/strict');
+          const fs = require('node:fs');
+          const manifest = require('./manifest.json');
+          const pkg = require('./package.json');
+          const lock = require('./package-lock.json');
+          assert.match(process.env.RELEASE_TAG, /^\d+\.\d+\.\d+$/);
+          for (const version of [manifest.version, pkg.version, lock.version, lock.packages[''].version]) {
+            assert.equal(version, process.env.RELEASE_TAG, 'Release tag and package versions must match');
+          }
+          assert.ok(fs.existsSync(`docs/releases/${manifest.version}.md`), 'Release notes are required');
+          NODE
 
-      - name: Build production plugin
-        run: npm run build
+      - name: Check types, lint, tests and production build
+        run: npm run check
 
       - name: Attest Build Provenance
         uses: actions/attest-build-provenance@v1
@@ -44,6 +58,8 @@ jobs:
       - name: Create and Upload Release Assets
         uses: softprops/action-gh-release@v2
         with:
+          body_path: docs/releases/${{ github.ref_name }}.md
+          fail_on_unmatched_files: true
           files: |
             main.js
             manifest.json

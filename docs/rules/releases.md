@@ -12,19 +12,25 @@ This playbook describes how the automated release pipeline publishes plugin vers
 
 ## Triggering a Release
 
-The GitHub Actions workflow defined in [.github/workflows/release.yml](../../.github/workflows/release.yml) triggers automatically on any git tag push matching the semantic version pattern:
+Update `manifest.json`, `package.json` and both root version entries in `package-lock.json` together. Add the release description in `docs/releases/<version>.md`. Run `npm run check` and `npm run test:browser` before tagging.
+
+The GitHub Actions workflow defined in [.github/workflows/release.yml](../../.github/workflows/release.yml) triggers on tag pushes. Use the exact version from the manifest without a `v` prefix, as required by Obsidian:
 ```bash
-git tag v1.0.1
-git push origin v1.0.1
+git tag -a 1.0.6 -m "Release 1.0.6"
+git push origin main refs/tags/1.0.6
 ```
 
 ## Release Steps
 
-1. **Dependency Installation**: Runs `npm ci` or `npm install`.
-2. **Build Verification**: Runs tests using `npm test` and builds the plugin via `npm run build`.
-3. **Artifact Deployment**:
-   * Creates a draft/published GitHub Release matching the tag name.
+1. **Dependency Installation**: Runs `npm ci`.
+2. **Metadata Validation**: Requires an `x.y.z` tag matching the manifest, package and lockfile versions, and checks that release notes exist.
+3. **Build Verification**: Runs `npm run check` to type-check, lint, test and build the production plugin.
+4. **Build Provenance**: Attests the three release assets.
+5. **Artifact Deployment**:
+   * Publishes a GitHub Release matching the tag name with the prepared notes and generated changelog.
    * Compiles and uploads the three required assets:
      * `main.js` (minified production build)
      * `manifest.json` (plugin manifest defining versions and dependencies)
      * `styles.css` (view and UI control styles)
+
+After the workflow completes, verify that the release is published, all three assets are attached, and the uploaded manifest reports the expected version. The local browser suite uses an Obsidian mock; a desktop/mobile device smoke test remains a separate release check.
