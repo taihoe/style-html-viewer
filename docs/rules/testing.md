@@ -25,3 +25,9 @@ Run all tests via:
 npm test
 ```
 Ensure all tests pass 100% before submitting pull requests or publishing.
+
+## Browser regressions
+
+Run `npm run test:browser` for the opaque sandbox, CSP, local assets, script toggle, search/outline, responsive widths, navigation, print styles, Markdown embeds and teardown. This uses a minified browser build with an Obsidian mock; it does not replace a device smoke test.
+
+Historical challenger tests now assert corrected behavior instead of documenting vulnerabilities as successful outcomes. `PreviewPanel.regression.test.ts` covers out-of-order CSS/read completion, close cancellation, rename cleanup, missing-asset creation/deletion and event debouncing.

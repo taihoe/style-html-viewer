@@ -145,3 +145,32 @@
   gap: 12px;
   color: var(--text-muted);
 }
+
+/* Shared controls for workspace previews and Markdown embeds. */
+.html-viewer-container { min-height: 0; }
+.html-viewer-toolbar, .html-viewer-navigation {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  flex-shrink: 0;
+}
+.html-viewer-toolbar button, .html-viewer-navigation button,
+.html-viewer-toolbar select, .html-viewer-navigation select { font-size: var(--font-ui-small); }
+.html-viewer-script-toggle { display: inline-flex; align-items: center; gap: 6px; font-size: var(--font-ui-small); }
+.html-viewer-navigation input { flex: 1 1 150px; min-width: 120px; }
+.html-viewer-navigation select { max-width: 240px; }
+.html-viewer-navigation [role="status"] { min-width: 50px; font-size: var(--font-ui-small); }
+.html-viewer-diagnostics { flex-shrink: 0; max-height: 180px; overflow: auto; padding: 6px 10px; font-size: var(--font-ui-small); border-bottom: 1px solid var(--background-modifier-border); }
+.html-viewer-diagnostics summary { cursor: pointer; }
+.html-viewer-diagnostics li { overflow-wrap: anywhere; }
+.html-viewer-preview-container { min-height: 0; overflow: auto; background: var(--background-secondary); }
+.html-viewer-iframe { display: block; margin: 0 auto; max-width: none; background: white; }
+.html-viewer-source-container { box-sizing: border-box; margin: 0; min-height: 100%; height: auto; white-space: pre; word-break: normal; }
+.html-viewer-error-card { box-sizing: border-box; margin: 24px auto; }
+.html-viewer-embed { height: 620px; min-height: 320px; resize: vertical; border: 1px solid var(--background-modifier-border); border-radius: 6px; }
+@media (max-width: 500px) {
+  .html-viewer-navigation select { width: 100%; max-width: none; }
+}

@@ -10,8 +10,10 @@ describe('Empirical Challenge Suite for HtmlAssetResolver & IpcBridge', () => {
       rawHtml,
       currentFileFolderPath: '',
       getResourcePathFn: mockGetResourcePath,
+      allowScripts: true, readVaultFileFn: async () => 'body{color:red}',
     });
-    expect(resRoot.assetPaths).toEqual(['outside.png', 'secret.png']);
+    expect(resRoot.assetPaths).toEqual([]);
+    expect(resRoot.diagnostics).toHaveLength(2);
   });
 
   test('2. Custom URI Schemes (tel:, sms:, obsidian:)', async () => {
@@ -20,6 +22,7 @@ describe('Empirical Challenge Suite for HtmlAssetResolver & IpcBridge', () => {
       rawHtml,
       currentFileFolderPath: 'docs',
       getResourcePathFn: mockGetResourcePath,
+      allowScripts: true, readVaultFileFn: async () => 'body{color:red}',
     });
     expect(res.assetPaths).not.toContain('docs/tel:123456');
     expect(res.assetPaths).not.toContain('docs/obsidian://open');
@@ -36,10 +39,11 @@ describe('Empirical Challenge Suite for HtmlAssetResolver & IpcBridge', () => {
       rawHtml,
       currentFileFolderPath: 'assets',
       getResourcePathFn: mockGetResourcePath,
+      allowScripts: true, readVaultFileFn: async () => 'body{color:red}',
     });
     // Check clean asset paths captured (without query params)
     expect(res.assetPaths).toContain('assets/style.css');
-    expect(res.transformedHtml).toContain('href="app://local-vault/assets/style.css?v=1.0.0"');
+    expect(res.transformedHtml).toContain('<style>body{color:red}</style>');
   });
 
   test('4. DOCTYPE Retention Verification', async () => {
@@ -48,6 +52,7 @@ describe('Empirical Challenge Suite for HtmlAssetResolver & IpcBridge', () => {
       rawHtml,
       currentFileFolderPath: '',
       getResourcePathFn: mockGetResourcePath,
+      allowScripts: true, readVaultFileFn: async () => 'body{color:red}',
     });
     expect(res.transformedHtml.startsWith('<!DOCTYPE html>')).toBe(true);
   });

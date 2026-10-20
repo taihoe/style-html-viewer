@@ -39,15 +39,14 @@ describe('IpcBridge Empirical Stress Testing Harness', () => {
 
       const testCases = [
         { input: '..%2fsecret.md', expected: 'secret.md' },
-        { input: '....//secret.md', expected: 'secret.md' },
-        { input: '..%2f..%2fetc/passwd', expected: 'etc/passwd' },
-        { input: '..%5c..%5cwindows/system32', expected: 'windows/system32' },
-        { input: '....\\\\....\\\\secret.txt', expected: 'secret.txt' },
-        { input: '%2e%2e%2f%2e%2e%2fconfig', expected: 'config' },
-        { input: '////absolute/path.md', expected: 'absolute/path.md' },
-        { input: '..//..//..//var/log/syslog', expected: 'var/log/syslog' },
-        { input: 'subfolder/..%2f..%2ftarget.md', expected: 'subfolder/target.md' },
-        { input: '..../....//....//deep/file.md', expected: 'deep/file.md' }
+        { input: '....//secret.md', expected: 'folder/..../secret.md' },
+        { input: '..%2f..%2fetc/passwd', expected: null },
+        { input: '..%5c..%5cwindows/system32', expected: null },
+        { input: '%2e%2e%2f%2e%2e%2fconfig', expected: null },
+        { input: '////absolute/path.md', expected: null },
+        { input: '..//..//..//var/log/syslog', expected: null },
+        { input: 'subfolder/..%2f..%2ftarget.md', expected: 'target.md' },
+        { input: 'my..note.md', expected: 'folder/my..note.md' }
       ];
 
       testCases.forEach(({ input, expected }) => {
@@ -57,6 +56,7 @@ describe('IpcBridge Empirical Stress Testing Harness', () => {
           source: fakeWindow
         });
         window.dispatchEvent(event);
+        if (expected === null) { expect(mockApp.workspace.openLinkText).not.toHaveBeenCalled(); return; }
         expect(mockApp.workspace.openLinkText).toHaveBeenCalledWith(
           expected,
           'folder/current.html',
@@ -117,7 +117,7 @@ describe('IpcBridge Empirical Stress Testing Harness', () => {
           source: fakeWindow
         });
         window.dispatchEvent(event);
-        expect(window.open).toHaveBeenCalledWith(url.trim(), '_blank');
+        expect(window.open).toHaveBeenCalledWith(url.trim(), '_blank', 'noopener,noreferrer');
       });
 
       const blockedUrls = [

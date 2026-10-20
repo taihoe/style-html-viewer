@@ -4,7 +4,7 @@ describe('Challenger M2 Stress & Empirical Harness for HtmlAssetResolver', () =>
   const mockGetResourcePath = (vaultPath: string) => `app://local-vault/${vaultPath}`;
 
   describe('1. Srcset Candidate Lists Stress Tests', () => {
-    test('1.1 Data URI with embedded comma inside srcset causes corruption and fake asset paths', async () => {
+    test('1.1 Data URI with embedded comma inside srcset preserves embedded commas without fake asset paths', async () => {
       const rawHtml = `<img srcset="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg== 1x, images/real-2x.png 2x">`;
       const result = await resolveHtmlAssets({
         rawHtml,
@@ -12,12 +12,12 @@ describe('Challenger M2 Stress & Empirical Harness for HtmlAssetResolver', () =>
         getResourcePathFn: mockGetResourcePath,
       });
 
-      // Verification of empirical flaw: simple split(',') breaks base64 data URIs
-      expect(result.assetPaths).toContain('docs/iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==');
-      expect(result.transformedHtml).toContain('data:image/png;base64, app://local-vault/docs/iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==');
+      // Regression for the former empirical flaw: simple split(',') breaks base64 data URIs
+      expect(result.assetPaths).not.toContain('docs/iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==');
+      expect(result.transformedHtml).toContain('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==');
     });
 
-    test('1.2 Query parameter with embedded comma inside srcset splits incorrectly', async () => {
+    test('1.2 Query parameter with embedded comma inside srcset remains a single candidate', async () => {
       const rawHtml = `<img srcset="pic.jpg?coords=10,20&size=small 1x, pic-2x.jpg 2x">`;
       const result = await resolveHtmlAssets({
         rawHtml,
@@ -25,8 +25,8 @@ describe('Challenger M2 Stress & Empirical Harness for HtmlAssetResolver', () =>
         getResourcePathFn: mockGetResourcePath,
       });
 
-      // Verification of empirical flaw: comma inside query param creates invalid asset candidate
-      expect(result.assetPaths).toContain('photos/20&size=small');
+      // Regression for the former empirical flaw: comma inside query param creates invalid asset candidate
+      expect(result.assetPaths).toEqual(['photos/pic.jpg', 'photos/pic-2x.jpg']);
     });
 
     test('1.3 Complex multiline whitespace in srcset is handled for clean paths', async () => {
@@ -42,7 +42,7 @@ describe('Challenger M2 Stress & Empirical Harness for HtmlAssetResolver', () =>
   });
 
   describe('2. Video Poster and Multimedia Stress Tests', () => {
-    test('2.1 Video poster and source attributes are resolved, but track tags are omitted', async () => {
+    test('2.1 Video poster and source attributes are resolved, but track tags are resolved', async () => {
       const rawHtml = `
         <video poster="posters/intro-poster.jpg" src="videos/intro.mp4">
           <source src="videos/intro.webm" type="video/webm">
@@ -58,9 +58,9 @@ describe('Challenger M2 Stress & Empirical Harness for HtmlAssetResolver', () =>
       expect(result.transformedHtml).toContain('poster="app://local-vault/media/posters/intro-poster.jpg"');
       expect(result.transformedHtml).toContain('src="app://local-vault/media/videos/intro.mp4"');
       expect(result.transformedHtml).toContain('src="app://local-vault/media/videos/intro.webm"');
-      // Empirical verification: track src is ignored by DOM queries in HtmlAssetResolver
-      expect(result.transformedHtml).toContain('src="subtitles/en.vtt"');
-      expect(result.assetPaths).not.toContain('media/subtitles/en.vtt');
+      // Empirical verification: track src is resolved by DOM queries in HtmlAssetResolver
+      expect(result.transformedHtml).toContain('src="app://local-vault/media/subtitles/en.vtt"');
+      expect(result.assetPaths).toContain('media/subtitles/en.vtt');
     });
   });
 
@@ -77,7 +77,7 @@ describe('Challenger M2 Stress & Empirical Harness for HtmlAssetResolver', () =>
       expect(result.transformedHtml).toContain('src="app://local-vault/level1/core/assets/logo.png"');
     });
 
-    test('3.2 Excessive root escape traversal clamps to vault root', async () => {
+    test('3.2 Excessive root escape traversal is rejected', async () => {
       const rawHtml = `<img src="../../../../../../top-secret.png">`;
       const result = await resolveHtmlAssets({
         rawHtml,
@@ -85,10 +85,11 @@ describe('Challenger M2 Stress & Empirical Harness for HtmlAssetResolver', () =>
         getResourcePathFn: mockGetResourcePath,
       });
 
-      expect(result.assetPaths).toEqual(['top-secret.png']);
+      expect(result.assetPaths).toEqual([]);
+      expect(result.diagnostics[0].message).toContain('leaves the vault');
     });
 
-    test('3.3 Backslash in relative paths is preserved without slash normalization', async () => {
+    test('3.3 Backslash in relative paths is normalized', async () => {
       const rawHtml = `<img src="images\\photo.jpg">`;
       const result = await resolveHtmlAssets({
         rawHtml,
@@ -96,12 +97,12 @@ describe('Challenger M2 Stress & Empirical Harness for HtmlAssetResolver', () =>
         getResourcePathFn: mockGetResourcePath,
       });
 
-      expect(result.assetPaths).toEqual(['notes/images\\photo.jpg']);
+      expect(result.assetPaths).toEqual(['notes/images/photo.jpg']);
     });
   });
 
   describe('4. Complex HTML Markup & DOM Parsing Stress Tests', () => {
-    test('4.1 Asset tags inside <template> elements are omitted from querySelector', async () => {
+    test('4.1 Asset tags inside <template> elements are resolved from querySelector', async () => {
       const rawHtml = `<template><img src="template-asset.png"></template>`;
       const result = await resolveHtmlAssets({
         rawHtml,

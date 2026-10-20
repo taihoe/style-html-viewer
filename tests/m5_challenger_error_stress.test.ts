@@ -80,16 +80,15 @@ describe('Milestone 5 Error Handling & Error Card Stress Tests', () => {
     });
   });
 
-  describe('2. Malformed XML/HTML markup causing <parsererror> tags', () => {
+  describe('2. Literal parsererror elements are ordinary HTML, not parser failures', () => {
     test('explicit parsererror tag in content', async () => {
       mockApp.vault.read.mockResolvedValue('<div><parsererror>XML Parsing Error: unclosed tag</parsererror></div>');
       await htmlView.onLoadFile(mockFile);
 
       const container = (htmlView as any).contentEl;
       const errorContainer = container.querySelector('.html-viewer-error-container');
-      expect(errorContainer).not.toBeNull();
-      const errorMessage = container.querySelector('.html-viewer-error-message');
-      expect(errorMessage.textContent).toBe('Malformed or invalid HTML structure');
+      expect(errorContainer).toBeNull();
+      expect(container.querySelector('iframe')).not.toBeNull();
     });
 
     test('parsererror with attributes and complex body', async () => {
@@ -98,9 +97,8 @@ describe('Milestone 5 Error Handling & Error Card Stress Tests', () => {
 
       const container = (htmlView as any).contentEl;
       const errorContainer = container.querySelector('.html-viewer-error-container');
-      expect(errorContainer).not.toBeNull();
-      const errorMessage = container.querySelector('.html-viewer-error-message');
-      expect(errorMessage.textContent).toBe('Malformed or invalid HTML structure');
+      expect(errorContainer).toBeNull();
+      expect(container.querySelector('iframe')).not.toBeNull();
     });
   });
 

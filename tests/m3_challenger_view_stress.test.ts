@@ -77,7 +77,7 @@ describe('Challenger M3 Empirical Stress & Edge-Case Suite for HtmlView State & 
       await new Promise((r) => setTimeout(r, 50));
 
       // 100 toggles starting from 'preview' (even number) should end in 'preview' mode
-      expect((view as any).mode).toBe('preview');
+      expect((view as any).panel.mode).toBe('preview');
       const iframes = contentEl.querySelectorAll('iframe.html-viewer-iframe');
       const pres = contentEl.querySelectorAll('pre.html-viewer-source-container');
       expect(iframes.length).toBe(1);
@@ -106,8 +106,8 @@ describe('Challenger M3 Empirical Stress & Edge-Case Suite for HtmlView State & 
       const loadPromise = view.onLoadFile(mockFile);
 
       // While first read is pending, switch mode to source and trigger second render
-      (view as any).mode = 'source';
-      const secondRenderPromise = (view as any).renderView();
+      (view as any).panel.mode = 'source';
+      const secondRenderPromise = (view as any).panel.render();
 
       // Resolve second read first, then first read
       resolveSecondRead!('<html><body>Source Mode Content</body></html>');
@@ -143,7 +143,7 @@ describe('Challenger M3 Empirical Stress & Edge-Case Suite for HtmlView State & 
       // Dispatch window postMessage intended for leaf1
       const iframe1 = leaf1.contentEl.querySelector('iframe.html-viewer-iframe') as HTMLIFrameElement;
       const msgEvent = new MessageEvent('message', {
-        data: { type: 'obsidian-navigate', linkText: 'target-note.md' }
+        data: { type: 'obsidian-navigate', linkText: 'target-note.md', token: new DOMParser().parseFromString(iframe1.srcdoc, 'text/html').querySelector('script')?.getAttribute('nonce') }
       });
       Object.defineProperty(msgEvent, 'source', { value: iframe1.contentWindow });
       window.dispatchEvent(msgEvent);
@@ -221,7 +221,8 @@ describe('Challenger M3 Empirical Stress & Edge-Case Suite for HtmlView State & 
       expect(removeListenerSpy).toHaveBeenCalledWith('message', expect.any(Function));
 
       // Trigger a vault modify event and ensure renderView is not called after close
-      const renderSpy = jest.spyOn(view as any, 'renderView');
+      const renderSpy = jest.spyOn(mockApp.vault, 'read');
+      renderSpy.mockClear();
       const modifyCb = eventListeners.get('modify');
       if (modifyCb) {
         modifyCb({ path: 'closed.html' });

@@ -62,7 +62,7 @@ describe('HtmlView Component & Milestone 3 Integration', () => {
     const container = (htmlView as any).contentEl;
     const iframe = container.querySelector('iframe.html-viewer-iframe');
     expect(iframe).not.toBeNull();
-    expect(iframe.getAttribute('sandbox')).toBe('allow-scripts allow-forms allow-same-origin allow-modals');
+    expect(iframe.getAttribute('sandbox')).toBe('allow-scripts allow-modals');
   });
 
   test('should switch to source mode rendering raw HTML in pre.html-viewer-source-container', async () => {
@@ -72,8 +72,8 @@ describe('HtmlView Component & Milestone 3 Integration', () => {
     // Simulate clicking the source toggle action button
     const actions = (htmlView as any).actions || [];
     // Or call renderView after toggling mode manually
-    (htmlView as any).mode = 'source';
-    await (htmlView as any).renderView();
+    (htmlView as any).panel.mode = 'source';
+    await (htmlView as any).panel.render();
 
     const container = (htmlView as any).contentEl;
     const sourcePre = container.querySelector('pre.html-viewer-source-container');
@@ -82,8 +82,9 @@ describe('HtmlView Component & Milestone 3 Integration', () => {
   });
 
   test('should call ipcBridge.detach and vaultWatcher.unregister on onClose', async () => {
-    const detachSpy = jest.spyOn((htmlView as any).ipcBridge, 'detach');
-    const unregisterSpy = jest.spyOn((htmlView as any).vaultWatcher, 'unregister');
+    await htmlView.onOpen();
+    const detachSpy = jest.spyOn((htmlView as any).panel.bridge, 'detach');
+    const unregisterSpy = jest.spyOn((htmlView as any).watcher, 'unregister');
 
     await htmlView.onClose();
 
@@ -117,17 +118,15 @@ describe('HtmlView Component & Milestone 3 Integration', () => {
     expect(errorMessage.textContent).toBe('HTML file is empty');
   });
 
-  test('should render styled error card when HTML is malformed with parsererror', async () => {
+  test('should render a literal parsererror element as ordinary HTML', async () => {
     mockApp.vault.read.mockResolvedValue('<parsererror>Syntax error in HTML</parsererror>');
 
     await htmlView.onLoadFile(mockFile);
 
     const container = (htmlView as any).contentEl;
     const errorContainer = container.querySelector('.html-viewer-error-container');
-    expect(errorContainer).not.toBeNull();
-    const errorMessage = container.querySelector('.html-viewer-error-message');
-    expect(errorMessage).not.toBeNull();
-    expect(errorMessage.textContent).toBe('Malformed or invalid HTML structure');
+    expect(errorContainer).toBeNull();
+    expect(container.querySelector('iframe')).not.toBeNull();
   });
 });
 

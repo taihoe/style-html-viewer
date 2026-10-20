@@ -8,6 +8,7 @@ export class VaultWatcher {
   private onReload?: ReloadCallback;
   private trackedDependencies: Set<string> = new Set();
   private eventRef: EventRef | null = null;
+  private lifecycleRefs: EventRef[] = [];
 
   // Global & Multi-view dependency maps
   private viewsByHtmlPath: Map<string, Set<ReloadCallback>> = new Map();
@@ -125,6 +126,11 @@ export class VaultWatcher {
     }
   }
 
+  /** Remove a subscriber independently of mutable TFile paths (including folder renames). */
+  public unregisterCallback(callback: ReloadCallback): void {
+    for (const path of [...this.viewsByHtmlPath.keys()]) this.unregisterView(path, callback);
+  }
+
   public getDependencies(htmlPath: string): string[] {
     const normHtmlPath = this.normalizePath(htmlPath);
     const viewMap = this.dependenciesByHtmlPath.get(normHtmlPath);
@@ -144,7 +150,7 @@ export class VaultWatcher {
     const vault = this.vault;
     if (this.eventRef || !vault || typeof vault.on !== 'function') return;
 
-    this.eventRef = vault.on('modify', (file: TAbstractFile) => {
+    const notify = (file: TAbstractFile) => {
       if (!file || !file.path) return;
       const modifiedPath = this.normalizePath(file.path);
       const triggeredCallbacks = new Set<ReloadCallback>();
@@ -154,23 +160,22 @@ export class VaultWatcher {
         const rawCurrent = this.getCurrentFilePath();
         if (rawCurrent) {
           const currentPath = this.normalizePath(rawCurrent);
-          if (modifiedPath === currentPath || this.trackedDependencies.has(modifiedPath)) {
+          if (modifiedPath === currentPath || currentPath.startsWith(modifiedPath + '/') || [...this.trackedDependencies].some(path => path === modifiedPath || path.startsWith(modifiedPath + '/'))) {
             triggeredCallbacks.add(this.onReload);
           }
         }
       }
 
       // 2. Multi-view direct HTML match check
-      const directSubscribers = this.viewsByHtmlPath.get(modifiedPath);
-      if (directSubscribers) {
-        directSubscribers.forEach(cb => triggeredCallbacks.add(cb));
+      for (const [path, subscribers] of this.viewsByHtmlPath) {
+        if (path === modifiedPath || path.startsWith(modifiedPath + '/')) subscribers.forEach(cb => triggeredCallbacks.add(cb));
       }
 
       // 3. Asset dependency match check
       for (const [htmlPath, viewMap] of this.dependenciesByHtmlPath.entries()) {
         const activeSubscribers = this.viewsByHtmlPath.get(htmlPath);
         for (const [cb, assets] of viewMap.entries()) {
-          if (assets.has(modifiedPath)) {
+          if ([...assets].some(path => path === modifiedPath || path.startsWith(modifiedPath + '/'))) {
             if (cb) {
               if (cb === this.onReload || (activeSubscribers && activeSubscribers.has(cb))) {
                 triggeredCallbacks.add(cb);
@@ -190,7 +195,37 @@ export class VaultWatcher {
           console.error('Error executing reload callback in VaultWatcher:', err);
         }
       });
-    });
+    };
+    this.eventRef = vault.on('modify', notify);
+    this.lifecycleRefs = [vault.on('create', notify), vault.on('delete', notify), vault.on('rename', (file, oldPath) => {
+      const before = this.normalizePath(oldPath);
+      const after = this.normalizePath(file.path);
+      const affected = new Set<ReloadCallback>();
+      for (const [htmlPath, callbacks] of [...this.viewsByHtmlPath]) {
+        const moved = htmlPath === before || htmlPath.startsWith(before + '/');
+        const dependencies = this.dependenciesByHtmlPath.get(htmlPath);
+        if (moved) {
+          const destination = after + htmlPath.slice(before.length);
+          this.viewsByHtmlPath.delete(htmlPath);
+          this.dependenciesByHtmlPath.delete(htmlPath);
+          const existing = this.viewsByHtmlPath.get(destination) || new Set<ReloadCallback>();
+          callbacks.forEach(cb => { existing.add(cb); affected.add(cb); });
+          this.viewsByHtmlPath.set(destination, existing);
+          const merged = this.dependenciesByHtmlPath.get(destination) || new Map<ReloadCallback | null, Set<string>>();
+          dependencies?.forEach((deps, cb) => merged.set(cb, deps));
+          this.dependenciesByHtmlPath.set(destination, merged);
+        }
+        dependencies?.forEach((deps, cb) => {
+          if ([...deps].some(path => path === before || path.startsWith(before + '/') || path === after || path.startsWith(after + '/'))) {
+            if (cb) affected.add(cb);
+            else callbacks.forEach(callback => affected.add(callback));
+          }
+        });
+      }
+      affected.forEach(callback => {
+        try { callback(); } catch (error) { console.error('Error reloading renamed HTML:', error); }
+      });
+    })];
   }
 
   public unregister(): void {
@@ -199,6 +234,11 @@ export class VaultWatcher {
       vault.offref(this.eventRef);
       this.eventRef = null;
     }
+    if (vault && typeof vault.offref === 'function') this.lifecycleRefs.forEach(ref => vault.offref(ref));
+    this.lifecycleRefs = [];
+    this.viewsByHtmlPath.clear();
+    this.dependenciesByHtmlPath.clear();
+    this.trackedDependencies.clear();
   }
 }
 

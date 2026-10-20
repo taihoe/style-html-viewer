@@ -1,3 +1,4 @@
+import { installPreviewRuntime, cleanupPreviewRuntime } from './previewRuntimeHarness';
 import { IpcBridge, getClickInterceptorScript } from '../src/ipc/IpcBridge';
 import { resolveHtmlAssets } from '../src/engine/HtmlAssetResolver';
 
@@ -25,6 +26,7 @@ describe('Milestone 4 - IPC Script & Link Interception Stress Harness', () => {
   });
 
   afterEach(() => {
+    cleanupPreviewRuntime();
     ipcBridge.detach();
     window.open = originalWindowOpen;
     jest.clearAllMocks();
@@ -40,10 +42,7 @@ describe('Milestone 4 - IPC Script & Link Interception Stress Harness', () => {
     document.body.appendChild(container);
 
     // Execute interceptor script in current window environment
-    const scriptText = getClickInterceptorScript();
-    const scriptEl = document.createElement('script');
-    scriptEl.textContent = scriptText;
-    document.head.appendChild(scriptEl);
+    installPreviewRuntime();
 
     return container;
   }
@@ -69,7 +68,7 @@ describe('Milestone 4 - IPC Script & Link Interception Stress Harness', () => {
 
       expect(event.defaultPrevented).toBe(true);
       expect(postMessageSpy).toHaveBeenCalledWith(
-        { type: 'obsidian-navigate', linkText: 'subfolder/nested_target.md' },
+        expect.objectContaining({ type: 'obsidian-navigate', linkText: 'subfolder/nested_target.md' }),
         '*'
       );
       postMessageSpy.mockRestore();
@@ -94,7 +93,7 @@ describe('Milestone 4 - IPC Script & Link Interception Stress Harness', () => {
 
       expect(event.defaultPrevented).toBe(true);
       expect(postMessageSpy).toHaveBeenCalledWith(
-        { type: 'obsidian-open-external', url: 'https://external-icon.org' },
+        expect.objectContaining({ type: 'obsidian-open-external', url: 'https://external-icon.org' }),
         '*'
       );
       postMessageSpy.mockRestore();
@@ -110,9 +109,7 @@ describe('Milestone 4 - IPC Script & Link Interception Stress Harness', () => {
         shadowRoot.innerHTML = `<a id="shadow-link" href="inside_shadow.md">Shadow Link</a>`;
 
         // Execute interceptor script
-        const scriptEl = document.createElement('script');
-        scriptEl.textContent = getClickInterceptorScript();
-        document.head.appendChild(scriptEl);
+        installPreviewRuntime();
 
         const postMessageSpy = jest.spyOn(window.parent, 'postMessage');
         const shadowLink = shadowRoot.querySelector('#shadow-link')!;
@@ -145,7 +142,7 @@ describe('Milestone 4 - IPC Script & Link Interception Stress Harness', () => {
 
       expect(event.defaultPrevented).toBe(true);
       expect(postMessageSpy).toHaveBeenCalledWith(
-        { type: 'obsidian-navigate', linkText: 'dynamic_note.md' },
+        expect.objectContaining({ type: 'obsidian-navigate', linkText: 'dynamic_note.md' }),
         '*'
       );
       postMessageSpy.mockRestore();
@@ -187,7 +184,7 @@ describe('Milestone 4 - IPC Script & Link Interception Stress Harness', () => {
 
       // Case-insensitive check routes uppercase HTTP:// to obsidian-open-external
       expect(postMessageSpy).toHaveBeenCalledWith(
-        { type: 'obsidian-open-external', url: 'HTTP://EXAMPLE.COM/PAGE' },
+        expect.objectContaining({ type: 'obsidian-open-external', url: 'HTTP://EXAMPLE.COM/PAGE' }),
         '*'
       );
 
@@ -198,7 +195,7 @@ describe('Milestone 4 - IPC Script & Link Interception Stress Harness', () => {
       httpsLink.dispatchEvent(httpsEvent);
 
       expect(postMessageSpy).toHaveBeenCalledWith(
-        { type: 'obsidian-open-external', url: 'Https://secure.org' },
+        expect.objectContaining({ type: 'obsidian-open-external', url: 'Https://secure.org' }),
         '*'
       );
 
@@ -222,12 +219,12 @@ describe('Milestone 4 - IPC Script & Link Interception Stress Harness', () => {
 
         if (selector === '#link-mailto') {
           expect(postMessageSpy).toHaveBeenCalledWith(
-            { type: 'obsidian-open-external', url: href },
+            expect.objectContaining({ type: 'obsidian-open-external', url: href }),
             '*'
           );
         } else {
           expect(postMessageSpy).toHaveBeenCalledWith(
-            { type: 'obsidian-navigate', linkText: href },
+            expect.objectContaining({ type: 'obsidian-navigate', linkText: href }),
             '*'
           );
         }
@@ -248,7 +245,7 @@ describe('Milestone 4 - IPC Script & Link Interception Stress Harness', () => {
       link.dispatchEvent(event);
 
       expect(postMessageSpy).toHaveBeenCalledWith(
-        { type: 'obsidian-navigate', linkText: '//cdn.example.com/lib.js' },
+        expect.objectContaining({ type: 'obsidian-navigate', linkText: '//cdn.example.com/lib.js' }),
         '*'
       );
       postMessageSpy.mockRestore();
@@ -285,7 +282,7 @@ describe('Milestone 4 - IPC Script & Link Interception Stress Harness', () => {
 
       // Target attribute is completely stripped/ignored from message payload
       expect(postMessageSpy).toHaveBeenCalledWith(
-        { type: 'obsidian-navigate', linkText: 'note_in_new_tab.md' },
+        expect.objectContaining({ type: 'obsidian-navigate', linkText: 'note_in_new_tab.md' }),
         '*'
       );
       postMessageSpy.mockRestore();

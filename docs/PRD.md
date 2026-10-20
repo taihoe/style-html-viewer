@@ -8,6 +8,12 @@ timestamp: 2026-06-30T10:00:00Z
 
 # PRD: Obsidian HTML Viewer Plugin (`obsidian-html-viewer`)
 
+## Implementation update (2026-10-20)
+
+The current implementation uses `FileView` plus a shared `PreviewPanel` for tabs and `html-viewer` Markdown code blocks. Source mode is read-only; an editable source pane, split view and remembered reading state are not implemented. Document scripts are opt-in per file. The preview has diagnostics, search/outline, responsive widths, commands, `.htm` support and system print/PDF controls.
+
+The original security and resource-loading decisions below are superseded by [the security playbook](rules/security.md): opaque iframe origin, embedded vault assets, plugin-owned CSP, no same-origin access. The product no longer supports nested active frames. See the README for current behavior and limits.
+
 ## Problem Statement
 
 Obsidian users and developers using automated learning or documentation generation tools (such as the `/teach` skill) often produce rich HTML reference materials, interactive lessons, cheat sheets, and visual documents directly within their vaults. However, existing Obsidian HTML preview plugins sandbox HTML rendering in a manner that prevents loading local relative CSS stylesheets (`<link rel="stylesheet" href="...">`), local images, and local scripts. This causes rendered documents to display unstyled, with broken image links and non-functional interactivity. Furthermore, hyperlinked navigation within these HTML files pointing to Markdown notes (`.md`) or other vault documents fails to integrate with Obsidian's native tab and workspace navigation.
@@ -27,7 +33,7 @@ The plugin intercepts link clicks inside the rendered HTML to open vault `.md` n
 5. As a user reading an HTML document with links to other `.html` reference files, I want clicking those links to open the target HTML file in Obsidian, so that I can browse interconnected HTML documentation effortlessly.
 6. As a user opening external web links embedded within an HTML document, I want them to open in my system's default web browser, so that external browsing does not disrupt my Obsidian workspace.
 7. As a user editing an HTML file or modifying its accompanying CSS stylesheet, I want the rendered HTML view to automatically refresh when files are saved, so that I can see live visual updates immediately.
-8. As a user, I want to toggle between the raw HTML source code editor and the rendered HTML preview in the same tab, so that I can inspect and edit HTML markup when necessary.
+8. As a user, I want to toggle between the raw HTML source code pane and the rendered HTML preview in the same tab, so that I can inspect HTML markup when necessary.
 9. As a security-conscious user, I want the HTML preview to be strictly sandboxed with a local-only Content Security Policy, so that untrusted HTML files cannot make unauthorized external network requests or access sensitive APIs.
 10. As a developer using interactive HTML widgets, I want sandboxed JavaScript execution to be enabled within the iframe, so that interactive diagrams, toggles, and client-side scripts function properly.
 11. As a user working on mobile (iOS/Android) or desktop (macOS/Windows/Linux), I want local file paths to resolve correctly across all operating systems, so that my HTML notes are accessible on any device.
@@ -37,10 +43,10 @@ The plugin intercepts link clicks inside the rendered HTML to open vault `.md` n
 
 ### Architectural Components
 - **`HtmlView` (Custom ItemView)**: Extends Obsidian's native `ItemView` with view type `html-viewer-view`. Registered in the plugin lifecycle (`registerView`) to handle files with `.html` extension.
-- **View State Management**: Supports two view modes within the leaf: `preview` (sandboxed iframe container) and `source` (Obsidian text editor), with a ribbon header icon to switch between modes.
+- **View State Management**: Supports two view modes within the leaf: `preview` (sandboxed iframe container) and `source` (read-only HTML text), with a ribbon header icon to switch between modes.
 - **Path Resolution & DOM Transformation**: Prior to populating the iframe, the raw HTML string is parsed using `DOMParser`. All relative attributes (`href`, `src`, `poster`, `data`) on elements (`script`, `img`, `video`, `audio`, `iframe`, `a`) are resolved relative to the active HTML file's vault folder path and converted into valid local resource URIs using Obsidian's `vault.getResourcePath(tfile)`.
 - **Local Stylesheet Inlining**: Due to browser and Obsidian iframe CSP protocol boundary enforcements blocking custom-scheme stylesheets (like `app://`) inside sandboxed iframes, the plugin reads local relative CSS stylesheet files asynchronously from the vault, rewrites nested `url()` resource paths to absolute local resource URIs, and replaces the original `<link rel="stylesheet">` tags with inline `<style>` blocks.
-- **Security & Content Security Policy (CSP)**: The iframe is instantiated with `sandbox="allow-scripts allow-forms allow-same-origin"`. A strict `<meta http-equiv="Content-Security-Policy">` tag is dynamically injected into the `<head>` of the processed HTML, restricting resource loading (`default-src`, `script-src`, `style-src`, `img-src`) strictly to `app://local/` and Obsidian custom local protocol schemes.
+- **Security & Content Security Policy (CSP)**: The iframe is instantiated with `sandbox="allow-scripts allow-modals"`. A strict `<meta http-equiv="Content-Security-Policy">` tag is dynamically injected into the `<head>` of the processed HTML, restricting resource loading (`default-src`, `script-src`, `style-src`, `img-src`) strictly to `app://local/` and Obsidian custom local protocol schemes.
 - **IPC Link Interception**: A tiny inline script is injected into the rendered HTML inside the iframe. It attaches a global `click` event listener to `document.body`. When an `<a>` element is clicked:
   - Relative or absolute vault file paths (`.md`, `.html`, `.pdf`, etc.) are intercepted, `preventDefault()` is called, and a message is posted to the parent frame via `window.parent.postMessage({ type: 'obsidian-navigate', linkText: ... }, '*')`.
   - External links (`http://`, `https://`, `mailto:`) are passed to Obsidian's `Electron.shell.openExternal` or `window.open`.

@@ -42,7 +42,7 @@ describe('IpcBridge & Link Interception Unit Tests', () => {
       expect(script).toContain("closest('a')");
       expect(script).toContain("type: 'obsidian-open-external'");
       expect(script).toContain("type: 'obsidian-navigate'");
-      expect(script).toContain("if (href.startsWith('#')) return;");
+      expect(script).toContain("href.startsWith('#')");
       expect(script).toContain("mailto:");
       expect(script).toContain("}, true);");
       expect(IPC_SCRIPT_TEMPLATE).toBe(script);
@@ -53,10 +53,10 @@ describe('IpcBridge & Link Interception Unit Tests', () => {
       const result = await resolveHtmlAssets({
         rawHtml,
         currentFileFolderPath: 'folder',
-        getResourcePathFn: (p) => p
+        getResourcePathFn: (p) => p, bridgeToken: 'test-token'
       });
 
-      expect(result.transformedHtml).toContain(getClickInterceptorScript());
+      expect(result.transformedHtml).toContain(getClickInterceptorScript('test-token'));
     });
   });
 
@@ -71,7 +71,7 @@ describe('IpcBridge & Link Interception Unit Tests', () => {
       window.dispatchEvent(event);
 
       expect(mockApp.workspace.openLinkText).toHaveBeenCalledWith(
-        'notes/target.md',
+        'folder/notes/target.md',
         'folder/current.html',
         false
       );
@@ -85,21 +85,21 @@ describe('IpcBridge & Link Interception Unit Tests', () => {
         source: fakeWindow
       });
       window.dispatchEvent(httpEvent);
-      expect(window.open).toHaveBeenCalledWith('HTTP://example.com', '_blank');
+      expect(window.open).toHaveBeenCalledWith('HTTP://example.com', '_blank', 'noopener,noreferrer');
 
       const httpsEvent = new MessageEvent('message', {
         data: { type: 'obsidian-open-external', url: 'Https://example.org/path?q=1' },
         source: fakeWindow
       });
       window.dispatchEvent(httpsEvent);
-      expect(window.open).toHaveBeenCalledWith('Https://example.org/path?q=1', '_blank');
+      expect(window.open).toHaveBeenCalledWith('Https://example.org/path?q=1', '_blank', 'noopener,noreferrer');
 
       const mailtoEvent = new MessageEvent('message', {
         data: { type: 'obsidian-open-external', url: 'MAILTO:test@example.com' },
         source: fakeWindow
       });
       window.dispatchEvent(mailtoEvent);
-      expect(window.open).toHaveBeenCalledWith('MAILTO:test@example.com', '_blank');
+      expect(window.open).toHaveBeenCalledWith('MAILTO:test@example.com', '_blank', 'noopener,noreferrer');
     });
 
     test('should strictly require iframe contentWindow matching event source', async () => {
@@ -146,14 +146,14 @@ describe('IpcBridge & Link Interception Unit Tests', () => {
         source: fakeWindow
       });
       window.dispatchEvent(payloadTraversal1);
-      expect(mockApp.workspace.openLinkText).toHaveBeenCalledWith('secret.md', 'folder/current.html', false);
+      expect(mockApp.workspace.openLinkText).not.toHaveBeenCalled();
 
       const payloadTraversal2 = new MessageEvent('message', {
         data: { type: 'obsidian-navigate', linkText: '....//secret.md' },
         source: fakeWindow
       });
       window.dispatchEvent(payloadTraversal2);
-      expect(mockApp.workspace.openLinkText).toHaveBeenCalledWith('secret.md', 'folder/current.html', false);
+      expect(mockApp.workspace.openLinkText).toHaveBeenCalledWith('folder/..../secret.md', 'folder/current.html', false);
 
       const payloadTraversal3 = new MessageEvent('message', {
         data: { type: 'obsidian-navigate', linkText: '..%2fsecret.md' },

@@ -45,14 +45,14 @@ describe('Challenger M3-2 Empirical Stress Harness: Sandbox Boundaries, Script E
   });
 
   describe('1. Iframe Sandbox DOM Security Boundaries & Escape Analysis', () => {
-    test('1.1 Sandbox attribute enforces allow-scripts allow-forms allow-same-origin allow-modals explicitly', async () => {
+    test('1.1 Sandbox attribute enforces allow-scripts allow-modals explicitly', async () => {
       await htmlView.onLoadFile(mockFile);
       const container = (htmlView as any).contentEl;
       const iframe = container.querySelector('iframe.html-viewer-iframe') as HTMLIFrameElement;
       
       expect(iframe).not.toBeNull();
       const sandboxAttr = iframe.getAttribute('sandbox');
-      expect(sandboxAttr).toBe('allow-scripts allow-forms allow-same-origin allow-modals');
+      expect(sandboxAttr).toBe('allow-scripts allow-modals');
     });
 
     test('1.2 Empirical challenge: sandbox does NOT grant allow-top-navigation or allow-popups', async () => {
@@ -75,8 +75,9 @@ describe('Challenger M3-2 Empirical Stress Harness: Sandbox Boundaries, Script E
       const hasSameOrigin = sandboxTokens.includes('allow-same-origin');
       const hasScripts = sandboxTokens.includes('allow-scripts');
 
-      // Documenting empirical finding: both tokens are active simultaneously without origin isolation
-      expect(hasSameOrigin && hasScripts).toBe(true);
+      // Documenting empirical finding: regression: scripting must never grant same-origin access
+      expect(hasSameOrigin).toBe(false);
+      expect(hasScripts).toBe(true);
     });
   });
 
@@ -86,8 +87,8 @@ describe('Challenger M3-2 Empirical Stress Harness: Sandbox Boundaries, Script E
       mockApp.vault.read.mockResolvedValue(maliciousHtml);
 
       await htmlView.onLoadFile(mockFile);
-      (htmlView as any).mode = 'source';
-      await (htmlView as any).renderView();
+      (htmlView as any).panel.mode = 'source';
+      await (htmlView as any).panel.render();
 
       const container = (htmlView as any).contentEl;
       const preEl = container.querySelector('pre.html-viewer-source-container');
@@ -110,14 +111,14 @@ describe('Challenger M3-2 Empirical Stress Harness: Sandbox Boundaries, Script E
       expect(container.querySelectorAll('pre').length).toBe(0);
 
       // Switch to source mode
-      (htmlView as any).mode = 'source';
-      await (htmlView as any).renderView();
+      (htmlView as any).panel.mode = 'source';
+      await (htmlView as any).panel.render();
       expect(container.querySelectorAll('iframe').length).toBe(0);
       expect(container.querySelectorAll('pre').length).toBe(1);
 
       // Switch back to preview mode
-      (htmlView as any).mode = 'preview';
-      await (htmlView as any).renderView();
+      (htmlView as any).panel.mode = 'preview';
+      await (htmlView as any).panel.render();
       expect(container.querySelectorAll('iframe').length).toBe(1);
       expect(container.querySelectorAll('pre').length).toBe(0);
     });
@@ -184,11 +185,7 @@ describe('Challenger M3-2 Empirical Stress Harness: Sandbox Boundaries, Script E
       window.dispatchEvent(maliciousEvent);
 
       // Verification: Link text is sanitized of directory traversal sequences
-      expect(mockApp.workspace.openLinkText).toHaveBeenCalledWith(
-        'etc/shadow',
-        'notes/dashboard.html',
-        false
-      );
+      expect(mockApp.workspace.openLinkText).not.toHaveBeenCalled();
     });
 
     test('3.5 Lack of try-catch in IpcBridge handler allows exceptions from workspace.openLinkText to propagate unhandled', () => {
@@ -217,9 +214,9 @@ describe('Challenger M3-2 Empirical Stress Harness: Sandbox Boundaries, Script E
       const container = (htmlView as any).contentEl;
 
       // Trigger multiple reloads consecutively
-      await (htmlView as any).renderView();
-      await (htmlView as any).renderView();
-      await (htmlView as any).renderView();
+      await (htmlView as any).panel.render();
+      await (htmlView as any).panel.render();
+      await (htmlView as any).panel.render();
 
       expect(container.querySelectorAll('iframe').length).toBe(1);
     });

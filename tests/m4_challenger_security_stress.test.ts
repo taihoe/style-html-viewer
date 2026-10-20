@@ -41,7 +41,7 @@ describe('Milestone 4 Security & Stress Challenges (IPC Link Interception & Navi
 
       // Flaw check: Single pass replace(/(\.\.[\/\\])+/g, '') leaves '../secret.md'
       const calledLink = mockApp.workspace.openLinkText.mock.calls[0]?.[0];
-      expect(calledLink).not.toContain('..');
+      expect(calledLink).toBe('folder/..../secret.md');
     });
 
     test('CHALLENGE: URL-encoded path traversal (..%2fsecret.md, ..%5csecret.md)', () => {
@@ -75,7 +75,7 @@ describe('Milestone 4 Security & Stress Challenges (IPC Link Interception & Navi
       window.dispatchEvent(event);
 
       const calledLink = mockApp.workspace.openLinkText.mock.calls[0]?.[0];
-      expect(calledLink).not.toContain('..');
+      expect(mockApp.workspace.openLinkText).not.toHaveBeenCalled();
     });
   });
 

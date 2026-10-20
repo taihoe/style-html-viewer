@@ -16,7 +16,8 @@ All workflows are run via standard npm scripts defined in [package.json](../../p
 
 * **Development Compilation**: Run `npm run dev` to invoke esbuild in dev mode (which transpiles files into `main.js` with inline source maps and hot-rebuilding / watching enabled).
 * **Production Build**: Run `npm run build` to compile a minified production bundle.
-* **Testing**: Run `npm test` to run the Jest suite.
+* **Testing**: Run `npm test` to run the Jest suite; `npm run test:browser` verifies browser isolation and controls.
+* **Complete checks**: `npm run check` runs type checking, lint, unit tests and the production build.
 
 ## TypeScript Standards
 

@@ -70,9 +70,20 @@ class ItemView {
 class WorkspaceLeaf {}
 class TFile {}
 class Plugin {
-  registerView() {}
-  registerExtensions() {}
-  addCommand() {}
+  constructor(app) { this.app = app; this.views = new Map(); this.extensions = []; this.commands = []; this.processors = new Map(); this.events = []; }
+  registerView(type, create) { this.views.set(type, create); }
+  registerExtensions(extensions) { this.extensions.push(...extensions); }
+  addCommand(command) { this.commands.push(command); }
+  registerEvent(ref) { this.events.push(ref); }
+  registerMarkdownCodeBlockProcessor(name, processor) { this.processors.set(name, processor); }
+  async loadData() { return null; }
+  async saveData(data) { this.savedData = data; }
+}
+
+class MarkdownRenderChild {
+  constructor(containerEl) { this.containerEl = containerEl; }
+  load() { this.onload(); }
+  unload() { this.onunload(); }
 }
 
 class FileView extends ItemView {
@@ -101,5 +112,6 @@ module.exports = {
   FileView,
   WorkspaceLeaf,
   TFile,
-  Plugin
+  Plugin,
+  MarkdownRenderChild
 };

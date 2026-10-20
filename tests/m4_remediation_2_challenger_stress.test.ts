@@ -1,3 +1,4 @@
+import { installPreviewRuntime, cleanupPreviewRuntime } from './previewRuntimeHarness';
 import { IpcBridge, getClickInterceptorScript, IPC_SCRIPT_TEMPLATE } from '../src/ipc/IpcBridge';
 
 describe('Milestone 4 Remediation 2 - Empirical Stress Harness for Click Capture & DOM Handling', () => {
@@ -29,6 +30,7 @@ describe('Milestone 4 Remediation 2 - Empirical Stress Harness for Click Capture
   });
 
   afterEach(() => {
+    cleanupPreviewRuntime();
     ipcBridge.detach();
     window.open = originalWindowOpen;
     jest.clearAllMocks();
@@ -40,10 +42,7 @@ describe('Milestone 4 Remediation 2 - Empirical Stress Harness for Click Capture
     container.innerHTML = htmlContent;
     document.body.appendChild(container);
 
-    const scriptText = getClickInterceptorScript();
-    const scriptEl = document.createElement('script');
-    scriptEl.textContent = scriptText;
-    document.head.appendChild(scriptEl);
+    installPreviewRuntime();
 
     return container;
   }
@@ -52,11 +51,11 @@ describe('Milestone 4 Remediation 2 - Empirical Stress Harness for Click Capture
     test('VERIFY: getClickInterceptorScript outputs correct IIFE string matching IPC_SCRIPT_TEMPLATE', () => {
       const script = getClickInterceptorScript();
       expect(typeof script).toBe('string');
-      expect(script).toContain('(function() {');
-      expect(script).toContain("document.addEventListener('click', function(e) {");
+      expect(script).toContain('function previewRuntime');
+      expect(script).toContain("document.addEventListener('click'");
       expect(script).toContain('}, true);');
-      expect(script).toContain("var anchor = e.target.closest ? e.target.closest('a') : null;");
-      expect(script).toContain("if (href.startsWith('#')) return;");
+      expect(script).toContain("closest('a')");
+      expect(script).toContain("href.startsWith('#')");
       expect(IPC_SCRIPT_TEMPLATE).toBe(script);
     });
   });
@@ -83,7 +82,7 @@ describe('Milestone 4 Remediation 2 - Empirical Stress Harness for Click Capture
       // Document capture listener intercepted and prevented default
       expect(event.defaultPrevented).toBe(true);
       expect(postMessageSpy).toHaveBeenCalledWith(
-        { type: 'obsidian-navigate', linkText: 'target.md' },
+        expect.objectContaining({ type: 'obsidian-navigate', linkText: 'target.md' }),
         '*'
       );
       expect(bubbleExecuted).toBe(true);
@@ -109,7 +108,7 @@ describe('Milestone 4 Remediation 2 - Empirical Stress Harness for Click Capture
 
       expect(event.defaultPrevented).toBe(true);
       expect(postMessageSpy).toHaveBeenCalledWith(
-        { type: 'obsidian-navigate', linkText: 'target_doc.html' },
+        expect.objectContaining({ type: 'obsidian-navigate', linkText: 'target_doc.html' }),
         '*'
       );
       postMessageSpy.mockRestore();
@@ -163,7 +162,7 @@ describe('Milestone 4 Remediation 2 - Empirical Stress Harness for Click Capture
 
       expect(event1.defaultPrevented).toBe(true);
       expect(postMessageSpy).toHaveBeenCalledWith(
-        { type: 'obsidian-navigate', linkText: 'notes/readme.md' },
+        expect.objectContaining({ type: 'obsidian-navigate', linkText: 'notes/readme.md' }),
         '*'
       );
 
@@ -176,7 +175,7 @@ describe('Milestone 4 Remediation 2 - Empirical Stress Harness for Click Capture
 
       expect(event2.defaultPrevented).toBe(true);
       expect(postMessageSpy).toHaveBeenCalledWith(
-        { type: 'obsidian-navigate', linkText: '../pages/about.html' },
+        expect.objectContaining({ type: 'obsidian-navigate', linkText: '../pages/about.html' }),
         '*'
       );
 
@@ -197,7 +196,7 @@ describe('Milestone 4 Remediation 2 - Empirical Stress Harness for Click Capture
       httpLink.dispatchEvent(event1);
       expect(event1.defaultPrevented).toBe(true);
       expect(postMessageSpy).toHaveBeenCalledWith(
-        { type: 'obsidian-open-external', url: 'http://example.com' },
+        expect.objectContaining({ type: 'obsidian-open-external', url: 'http://example.com' }),
         '*'
       );
 
@@ -208,7 +207,7 @@ describe('Milestone 4 Remediation 2 - Empirical Stress Harness for Click Capture
       httpsLink.dispatchEvent(event2);
       expect(event2.defaultPrevented).toBe(true);
       expect(postMessageSpy).toHaveBeenCalledWith(
-        { type: 'obsidian-open-external', url: 'https://obsidian.md' },
+        expect.objectContaining({ type: 'obsidian-open-external', url: 'https://obsidian.md' }),
         '*'
       );
 

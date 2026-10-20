@@ -5,3 +5,7 @@
 * **Initialization**: Created the OKF knowledge bundle structure for workspace agent instructions.
 * **Creation**: Added the root [AGENTS](../AGENTS.md) rules entry point.
 * **Creation**: Added architectural, development, testing, security, and release playbooks under [rules/](rules/).
+
+## 2026-10-20 — Secure preview and controls
+
+Replaced the unsafe same-origin sandbox guidance with opaque-origin rendering and vault-embedded resources. Updated the CSP, source-mode description, asset/import behavior and browser testing guidance. Added documentation for script preferences, diagnostics, search/outline, viewport sizes, Markdown embeds, commands, `.htm` and print/PDF.
